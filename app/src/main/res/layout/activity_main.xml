@@ -78,21 +78,96 @@
             </androidx.cardview.widget.CardView>
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
-                app:cardBackgroundColor="#2c3e50"
                 app:cardCornerRadius="7dp"
+                android:id="@+id/hiddenCard"
+                android:visibility="visible"
                 android:orientation="vertical"
                 android:layout_height="match_parent">
-                <TextView
+                <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:fontFamily="@font/basic"
-                    android:padding="10dp"
-                    android:text="Your Selected Date"
-                    android:textColor="@color/white"
-                    android:textSize="19sp"
-                    android:textStyle="bold" />
+                    android:orientation="vertical"
+                    android:background="@drawable/answer_background"
+                    android:layout_height="match_parent">
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/basic"
+                        android:padding="10dp"
+                        android:text="Your Selected Date :"
+                        android:textColor="@color/white"
+                        android:textSize="19sp"
+                        android:textStyle="bold" />
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/basic"
+                        android:padding="5dp"
+                        android:id="@+id/userSelectedDate"
+                        android:gravity="center"
+                        android:text="12/12/1212 "
+                        android:textColor="@color/white"
+                        android:textSize="19sp"
+                        android:textStyle="bold" />
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:orientation="horizontal"
+                        android:layout_height="wrap_content">
+                        <androidx.cardview.widget.CardView
+                            android:layout_width="0dp"
+                            app:cardCornerRadius="20sp"
+                            android:layout_weight="1"
+                            android:layout_margin="5dp"
+                            android:layout_height="wrap_content">
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:text="Minutes"
+                                android:background="#8A2387"
+                                android:textColor="@color/white"
+                                android:padding="10dp"
+                                android:fontFamily="@font/basic"
+                                android:textSize="18sp"
+                                android:layout_gravity="center"
+                                android:gravity="center"
+                                android:layout_height="match_parent"/>
+                        </androidx.cardview.widget.CardView>
+                        <androidx.cardview.widget.CardView
+                            android:layout_width="0dp"
+                            app:cardCornerRadius="20sp"
+                            android:layout_weight="1"
+                            android:layout_margin="5dp"
+                            android:layout_height="wrap_content">
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:text="Days"
+                                android:padding="10dp"
+                                android:textSize="18sp"
+                               android:textColor="@color/black"
+                                android:fontFamily="@font/basic"
+                                android:layout_gravity="center"
+                                android:gravity="center"
+                                android:layout_height="match_parent"/>
+                        </androidx.cardview.widget.CardView>
+                        <androidx.cardview.widget.CardView
+                            android:layout_width="0dp"
+                            app:cardCornerRadius="20sp"
+                            android:layout_weight="1"
+                            android:layout_margin="5dp"
+                            android:layout_height="wrap_content">
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:text="Guess?"
+                                android:padding="10dp"
+                                android:textSize="18sp"
+                                android:layout_gravity="center"
+                                android:gravity="center"
+                                android:background="#fffc00"
+                                android:textColor="@color/black"
+                                android:fontFamily="@font/basic"
+                                android:layout_height="match_parent"/>
+                        </androidx.cardview.widget.CardView>
+                    </LinearLayout>
+                </LinearLayout>
             </androidx.cardview.widget.CardView>
-
         </LinearLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>

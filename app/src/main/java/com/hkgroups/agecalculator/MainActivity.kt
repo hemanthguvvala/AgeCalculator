@@ -33,6 +33,11 @@ class MainActivity : AppCompatActivity() {
         DatePickerDialog (this,DatePickerDialog.OnDateSetListener {
             view,Year,Month,dayOfMonth ->
 
+            val userSelectedDate:TextView = findViewById(R.id.userSelectedDate)
+            userSelectedDate.text = "$dayOfMonth / ${Month+1} / $Year"
+            val hiddenCardView:CardView = findViewById(R.id.hiddenCard)
+            hiddenCardView.visibility = View.VISIBLE
+
         },year,month,date).show()
 
 
