@@ -3,13 +3,18 @@ package com.hkgroups.agecalculator
 import android.app.DatePickerDialog
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.os.SystemClock
 import android.view.View
+import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 
 import androidx.cardview.widget.CardView
+import com.airbnb.lottie.LottieAnimationView
+import org.w3c.dom.Text
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.math.max
 
 class MainActivity : AppCompatActivity() {
 
@@ -30,51 +35,58 @@ class MainActivity : AppCompatActivity() {
         val month = calendar.get(Calendar.MONTH)
         val year = calendar.get(Calendar.YEAR)
 
-        DatePickerDialog (this,DatePickerDialog.OnDateSetListener {
+       val dataPickDialog =  DatePickerDialog (this,DatePickerDialog.OnDateSetListener {
             view,Year,Month,dayOfMonth ->
-
-            val userSelectedDate:TextView = findViewById(R.id.userSelectedDate)
-            userSelectedDate.text = "$dayOfMonth / ${Month+1} / $Year"
+            val userSelectedDate = "$dayOfMonth/${Month+1}/$Year"
+            val userSelectedDateText:TextView = findViewById(R.id.userSelectedDate)
+            userSelectedDateText.text = userSelectedDate
             val hiddenCardView:CardView = findViewById(R.id.hiddenCard)
             hiddenCardView.visibility = View.VISIBLE
+            val dateFormat  =  SimpleDateFormat("dd/MM/yyyy",Locale.ENGLISH)
+           val formatDate = dateFormat.parse(userSelectedDate)
+           val minutes = 60000
+           val days = 86400000
+           val timeFormatDate = formatDate!!.time
+           val actualDateTime = dateFormat.parse(dateFormat.format(System.currentTimeMillis()))!!.time
+           val minResultTime =   (actualDateTime/minutes) -(timeFormatDate/minutes)
+           val dayResultTime =   (actualDateTime/days) -(timeFormatDate/days)
+           val yearResultTime =    Calendar.getInstance().get(Calendar.YEAR) - Year
+           val minBtn :CardView = findViewById(R.id.minuteCalBtn)
+           val dayBtn :CardView = findViewById(R.id.daysCalBtn)
+           val yearBtn :CardView = findViewById(R.id.yearCalBtn)
+           val resultText:TextView = findViewById(R.id.resultText)
+           minBtn.setOnClickListener {
+               resultText.visibility = View.VISIBLE
+               resultText.text = minResultTime.toString()
+               ageAnimation(yearResultTime)
+           }
+           dayBtn.setOnClickListener {
+               resultText.visibility = View.VISIBLE
+               resultText.text = dayResultTime.toString()
+               ageAnimation(yearResultTime)
+           }
+           yearBtn.setOnClickListener {
+               resultText.visibility = View.VISIBLE
+               resultText.text = yearResultTime.toString()
+               ageAnimation(yearResultTime)
+           }
+         //  val dayResultTime = (timeFormatDate*
+        },year,month,date)
 
-        },year,month,date).show()
-
-
-
+       dataPickDialog.datePicker.maxDate = Date().time - 86400000
+        dataPickDialog.show()
 
     }
 
-//    private fun datePicker(view: View?) {
-//        val myCalender = Calendar.getInstance()
-//        val date = myCalender.get(Calendar.DAY_OF_MONTH)
-//        val month = myCalender.get(Calendar.MONTH)
-//        val year = myCalender.get(Calendar.YEAR)
-//      var dpd =  DatePickerDialog(
-//            this,
-//            DatePickerDialog.OnDateSetListener { view, selectedYear, selectedMonth, dayOfMonth ->
-//                val selectedDate = "$dayOfMonth/${selectedMonth+1}/$selectedYear"
-//                val displayDateOfUser: TextView = findViewById(R.id.selected_date)
-//                displayDateOfUser.text = selectedDate
-//
-//                val formatDate = SimpleDateFormat("dd/MM/yyyy",Locale.ENGLISH);
-//                val theDate = formatDate.parse(selectedDate)
-//                val dateCalcute = theDate.time/60000
-//                val currentDate = formatDate.parse(formatDate.format(System.currentTimeMillis())).time/60000
-//                val actualminut = currentDate - dateCalcute
-//                val resultMin: TextView = findViewById(R.id.age_in_minutes)
-//                resultMin.text = actualminut.toString()
-//
-//            },
-//            year,
-//            month,
-//            date
-//        )
-//        dpd.datePicker.maxDate = (Date().time -86400000)
-//        dpd.show()
-//        Toast.makeText(this, "$date", Toast.LENGTH_SHORT).show()
-//
-//
-//    }
+    private fun ageAnimation(yearResultTime: Int) {
+       when(yearResultTime){
+           in 1..10 -> {
+               val image:LottieAnimationView = findViewById(R.id.animationImage)
+               image.setAnimation(R.raw.old_man_rocking)
+               image.visibility = View.VISIBLE
+               image.playAnimation()
+           }
+       }
+    }
 
 }

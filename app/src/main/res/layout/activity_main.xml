@@ -80,7 +80,7 @@
                 android:layout_width="match_parent"
                 app:cardCornerRadius="7dp"
                 android:id="@+id/hiddenCard"
-                android:visibility="visible"
+                android:visibility="invisible"
                 android:orientation="vertical"
                 android:layout_height="match_parent">
                 <LinearLayout
@@ -111,17 +111,20 @@
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:orientation="horizontal"
+                        android:layout_marginTop="5dp"
                         android:layout_height="wrap_content">
                         <androidx.cardview.widget.CardView
                             android:layout_width="0dp"
                             app:cardCornerRadius="20sp"
                             android:layout_weight="1"
                             android:layout_margin="5dp"
+                            android:id="@+id/minuteCalBtn"
+                            android:foreground="?android:attr/selectableItemBackground"
                             android:layout_height="wrap_content">
                             <TextView
                                 android:layout_width="match_parent"
                                 android:text="Minutes"
-                                android:background="#8A2387"
+                                android:background="#2C5364"
                                 android:textColor="@color/white"
                                 android:padding="10dp"
                                 android:fontFamily="@font/basic"
@@ -133,6 +136,8 @@
                         <androidx.cardview.widget.CardView
                             android:layout_width="0dp"
                             app:cardCornerRadius="20sp"
+                            android:id="@+id/daysCalBtn"
+                            android:foreground="?android:attr/selectableItemBackground"
                             android:layout_weight="1"
                             android:layout_margin="5dp"
                             android:layout_height="wrap_content">
@@ -152,6 +157,8 @@
                             app:cardCornerRadius="20sp"
                             android:layout_weight="1"
                             android:layout_margin="5dp"
+                            android:id="@+id/yearCalBtn"
+                            android:foreground="?android:attr/selectableItemBackground"
                             android:layout_height="wrap_content">
                             <TextView
                                 android:layout_width="match_parent"
@@ -166,6 +173,29 @@
                                 android:layout_height="match_parent"/>
                         </androidx.cardview.widget.CardView>
                     </LinearLayout>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:text=" Some Text "
+                        android:textColor="@color/white"
+                        android:gravity="center"
+                        android:layout_marginTop="30sp"
+                        android:id="@+id/resultText"
+                        android:padding="10sp"
+                        android:visibility="invisible"
+                        android:layout_marginStart="10dp"
+                        android:layout_marginEnd="10dp"
+                        android:layout_marginBottom="15sp"
+                        android:textSize="19sp"
+                        android:layout_gravity="center"
+                        android:fontFamily="casual"
+                        android:layout_height="wrap_content"/>
+                    <com.airbnb.lottie.LottieAnimationView
+                        android:layout_width="match_parent"
+                        app:lottie_autoPlay="true"
+                        app:lottie_loop="true"
+                        android:id="@+id/animationImage"
+                        android:visibility="invisible"
+                        android:layout_height="match_parent"/>
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
         </LinearLayout>
