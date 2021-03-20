@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">Age Calculator</string>
+    <string name="admob_id">ca-app-pub-1804991855866737~3901493434</string>
+    <string name="banner_id">ca-app-pub-1804991855866737/1275330099</string>
+    <string name="interstitial_ad">ca-app-pub-1804991855866737/7377704011</string>
+    <string name="ad_open_d">ca-app-pub-1804991855866737/4448288340</string>
 </resources>
