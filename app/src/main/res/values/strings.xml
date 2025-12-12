@@ -1,7 +1,14 @@
 <resources>
-    <string name="app_name">Age Calculator</string>
-    <string name="admob_id">ca-app-pub-1804991855866737~3901493434</string>
-    <string name="banner_id">ca-app-pub-1804991855866737/1275330099</string>
-    <string name="interstitial_ad">ca-app-pub-1804991855866737/7377704011</string>
-    <string name="ad_open_d">ca-app-pub-1804991855866737/4448288340</string>
+    <string name="app_name">Zodaic Age</string>
+
+    <string name="welcome_title">What\'s your story?</string>
+    <string name="welcome_button_text">Select Your Date of Birth</string>
+
+    <string name="history_screen_title">Events in Your Lifetime</string>
+    <string name="history_no_events_found">No historical events found for your lifetime.</string>
+    <string name="history_back_button_description">Back</string>
+
+    <string name="compatibility_screen_title">%1$s &amp; %2$s</string>
+    <string name="compatibility_rating">Rating: %1$s</string>
+    <string name="compatibility_loading">Loading details…</string>
 </resources>

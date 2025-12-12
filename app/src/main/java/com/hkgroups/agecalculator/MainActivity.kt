@@ -1,158 +1,136 @@
 package com.hkgroups.agecalculator
 
-import android.app.DatePickerDialog
-import android.app.Dialog
-import android.content.Intent
-import android.net.Uri
-import androidx.appcompat.app.AppCompatActivity
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
-import android.view.View
-import android.widget.Button
-import android.widget.TextView
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
+import androidx.core.content.ContextCompat
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.hkgroups.agecalculator.data.repository.SettingsRepository
+import com.hkgroups.agecalculator.ui.navigation.Screen
+import com.hkgroups.agecalculator.ui.screen.BirthdayEventsScreen
+import com.hkgroups.agecalculator.ui.screen.CompatibilityDetailScreen
+import com.hkgroups.agecalculator.ui.screen.CompatibilityListScreen
+import com.hkgroups.agecalculator.ui.screen.HistoricalEventsScreen
+import com.hkgroups.agecalculator.ui.screen.MainScreen
+import com.hkgroups.agecalculator.ui.screen.SettingsScreen
+import com.hkgroups.agecalculator.ui.screen.ZodiacDetailScreen
+import com.hkgroups.agecalculator.ui.screen.ZodiacExplorerScreen
+import com.hkgroups.agecalculator.ui.theme.ZodiacAgeTheme
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
-import androidx.cardview.widget.CardView
-import androidx.constraintlayout.widget.ConstraintLayout
-import com.airbnb.lottie.LottieAnimationView
-import com.google.android.gms.ads.AdRequest
-import com.google.android.gms.ads.AdView
-import com.google.android.gms.ads.MobileAds
-import com.google.android.gms.ads.interstitial.InterstitialAd
-import java.text.SimpleDateFormat
-import java.util.*
+@AndroidEntryPoint
+class MainActivity : ComponentActivity() {
 
-class MainActivity : AppCompatActivity() {
+    // --- NEW: Activity Result Launcher for Notification Permission ---
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        // We can handle the result here if needed, e.g., show a message
+    }
 
-    lateinit var mAdView: AdView
+    private fun askNotificationPermission() {
+        // This is only necessary for API level 33+ (Android 13+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED
+            ) {
+                // Directly ask for the permission
+                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
+
+    @Inject
+    lateinit var settingsRepository: SettingsRepository
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        askNotificationPermission()
+        setContent {
+            val isDarkMode by settingsRepository.isDarkMode.collectAsState(initial = false)
+            ZodiacAgeTheme(darkTheme = isDarkMode) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    val navController = rememberNavController()
+                    NavHost(
+                        navController = navController,
+                        startDestination = Screen.Main.route
+                    ) {
+                        composable(route = Screen.Main.route) {
+                            MainScreen(navController = navController)
+                        }
 
-        MobileAds.initialize(this) {}
+                        // Define the arguments for the compatibility route
+                        composable(
+                            route = Screen.Compatibility.route,
+                            arguments = listOf(
+                                navArgument("userSignName") { type = NavType.StringType },
+                                navArgument("partnerSignName") { type = NavType.StringType }
+                            )
+                        ) { backStackEntry ->
+                            // Extract the arguments
+                            val userSignName = backStackEntry.arguments?.getString("userSignName")
+                            val partnerSignName =
+                                backStackEntry.arguments?.getString("partnerSignName")
 
-        mAdView = findViewById(R.id.adView)
-        val adRequest = AdRequest.Builder().build()
-        mAdView.loadAd(adRequest)
+                            // Pass the arguments to the screen
+                            CompatibilityDetailScreen(
+                                navController = navController,
+                                userSignName = userSignName,
+                                partnerSignName = partnerSignName
+                            )
+                        }
 
-        val dateSelectorBtn: CardView = findViewById(R.id.dateSelector)
-        dateSelectorBtn.setOnClickListener {
-            datePickerView(it)
-        }
+                        composable(route = Screen.History.route) {
+                            HistoricalEventsScreen(navController = navController)
+                        }
 
-    }
+                        composable(route = Screen.ZodiacExplorer.route) {
+                            ZodiacExplorerScreen(navController = navController)
+                        }
 
-    private fun datePickerView(view: View?) {
-        val calendar = Calendar.getInstance()
-        val date = calendar.get(Calendar.DAY_OF_MONTH)
-        val month = calendar.get(Calendar.MONTH)
-        val year = calendar.get(Calendar.YEAR)
+                        composable(
+                            route = Screen.ZodiacDetail.route,
+                            arguments = listOf(navArgument("signName") {
+                                type = NavType.StringType
+                            })
+                        ) { backStackEntry ->
+                            ZodiacDetailScreen(
+                                navController = navController,
+                                signName = backStackEntry.arguments?.getString("signName")
+                            )
+                        }
+                        composable(route = Screen.CompatibilityList.route) {
+                            CompatibilityListScreen(navController = navController)
+                        }
 
-        val dataPickDialog = DatePickerDialog(
-            this,
-            DatePickerDialog.OnDateSetListener { view, Year, Month, dayOfMonth ->
-                val userSelectedDate = "$dayOfMonth/${Month + 1}/$Year"
-                val userSelectedDateText: TextView = findViewById(R.id.userSelectedDate)
-                userSelectedDateText.text = userSelectedDate
-                val hiddenCardView: CardView = findViewById(R.id.hiddenCard)
-                hiddenCardView.visibility = View.VISIBLE
-                val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.ENGLISH)
-                val formatDate = dateFormat.parse(userSelectedDate)
-                val minutes = 60000
-                val days = 86400000
-                val timeFormatDate = formatDate!!.time
-                val actualDateTime =
-                    dateFormat.parse(dateFormat.format(System.currentTimeMillis()))!!.time
-                val minResultTime = (actualDateTime / minutes) - (timeFormatDate / minutes)
-                val dayResultTime = (actualDateTime / days) - (timeFormatDate / days)
-                val yearResultTime = Calendar.getInstance().get(Calendar.YEAR) - Year
-                val minBtn: CardView = findViewById(R.id.minuteCalBtn)
-                val dayBtn: CardView = findViewById(R.id.daysCalBtn)
-                val yearBtn: CardView = findViewById(R.id.yearCalBtn)
+                        composable(route = Screen.BirthdayEvents.route) {
+                            BirthdayEventsScreen(navController = navController)
+                        }
 
-                minBtn.setOnClickListener {
-                    resultOutput(
-                        minResultTime,
-                        "min, OMG you selected Minutes i think you are Kid "
-                    )
-                    ageAnimation(yearResultTime)
+                        composable(route = Screen.Settings.route) {
+                            SettingsScreen(navController = navController)
+                        }
+                    }
                 }
-                dayBtn.setOnClickListener {
-                    resultOutput(dayResultTime, "days, Real Deal Man you are tough guy ")
-                    ageAnimation(yearResultTime)
-                }
-                yearBtn.setOnClickListener {
-                    resultOutput(yearResultTime.toLong(), " Legends only guess this, aren't you?")
-                    ageAnimation(yearResultTime)
-                }
-                //  val dayResultTime = (timeFormatDate*
-            },
-            year,
-            month,
-            date
-        )
-
-        dataPickDialog.datePicker.maxDate = Date().time - 86400000
-        dataPickDialog.show()
-
-    }
-
-    private fun resultOutput(result: Long, text: String) {
-        val resultText: TextView = findViewById(R.id.resultText)
-        resultText.visibility = View.VISIBLE
-        resultText.text = "${result.toString()} $text"
-    }
-
-    private fun ageAnimation(yearResultTime: Int) {
-        when (yearResultTime) {
-            in 0..13 -> playAnimation(R.raw.children)
-            in 14..18 -> playAnimation(R.raw.young_adult)
-            in 19..24 -> playAnimation(R.raw.couples)
-            in 25..29 -> playAnimation(R.raw.ageupto_28)
-            in 30..40 -> playAnimation(R.raw.default_img)
-            in 41..55 -> playAnimation(R.raw.old_man_rocking)
-            in 56..80 -> playAnimation(R.raw.chilling_old_man)
-            else -> playAnimation(R.raw.default_img)
-        }
-    }
-
-    private fun playAnimation(animation: Int) {
-        val image: LottieAnimationView = findViewById(R.id.animationImage)
-        image.setAnimation(animation)
-        image.visibility = View.VISIBLE
-        image.playAnimation()
-    }
-   lateinit var  dialog :Dialog
-    override fun onBackPressed() {
-        dialog = Dialog(this)
-        dialog.setContentView(R.layout.dialog_layout)
-        dialog.window!!.setLayout(
-            ConstraintLayout.LayoutParams.WRAP_CONTENT,
-            ConstraintLayout.LayoutParams.WRAP_CONTENT
-        )
-        val hellYeah = dialog.findViewById<Button>(R.id.hellYeah)
-        val nope = dialog.findViewById<Button>(R.id.nope)
-        val animation = dialog.findViewById<LottieAnimationView>(R.id.animationImage)
-        animation.setAnimation(R.raw.above_age_35)
-        val rateBtn = dialog.findViewById<CardView>(R.id.rateBtn)
-        animation.visibility = View.VISIBLE
-        animation.playAnimation()
-        dialog.show()
-
-        if (dialog.isShowing){
-
-            hellYeah.setOnClickListener {
-                dialog.dismiss()
-               super.onBackPressed()
-            }
-            nope.setOnClickListener {
-                dialog.dismiss()
-            }
-            rateBtn.setOnClickListener {
-                val uri = Uri.parse("https://play.google.com/store/apps/details?id=com.hkgroups.agecalculator")
-                val intent = Intent(Intent.ACTION_VIEW,uri)
-                dialog.dismiss()
-                startActivity(intent)
             }
         }
-//        super.onBackPressed()
     }
 }
