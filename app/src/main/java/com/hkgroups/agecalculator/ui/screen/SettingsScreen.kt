@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.hkgroups.agecalculator.MainActivity
+import com.hkgroups.agecalculator.ui.navigation.Screen
 import com.hkgroups.agecalculator.ui.viewmodel.MainViewModel
 import kotlinx.coroutines.launch
 
@@ -166,6 +167,27 @@ fun SettingsScreen(
                         ) {
                             Text("Reset")
                         }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // About Section
+            Text(
+                "About",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Card(elevation = CardDefaults.cardElevation(2.dp)) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    OutlinedButton(
+                        onClick = { navController.navigate(Screen.PrivacyPolicy.route) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Privacy Policy")
                     }
                 }
             }

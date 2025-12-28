@@ -28,6 +28,7 @@ import com.hkgroups.agecalculator.ui.screen.CompatibilityDetailScreen
 import com.hkgroups.agecalculator.ui.screen.CompatibilityListScreen
 import com.hkgroups.agecalculator.ui.screen.HistoricalEventsScreen
 import com.hkgroups.agecalculator.ui.screen.MainScreen
+import com.hkgroups.agecalculator.ui.screen.PrivacyPolicyScreen
 import com.hkgroups.agecalculator.ui.screen.SettingsScreen
 import com.hkgroups.agecalculator.ui.screen.ZodiacDetailScreen
 import com.hkgroups.agecalculator.ui.screen.ZodiacExplorerScreen
@@ -132,6 +133,10 @@ class MainActivity : ComponentActivity() {
 
                         composable(route = Screen.Settings.route) {
                             SettingsScreen(navController = navController)
+                        }
+
+                        composable(route = Screen.PrivacyPolicy.route) {
+                            PrivacyPolicyScreen(navController = navController)
                         }
                     }
                 }
