@@ -1,6 +1,7 @@
 package com.hkgroups.agecalculator.di
 
 import android.content.Context
+import com.hkgroups.agecalculator.BuildConfig
 import com.hkgroups.agecalculator.data.local.ZodiacDao
 import com.hkgroups.agecalculator.data.local.ZodiacDatabase
 import com.hkgroups.agecalculator.data.remote.MockApiInterceptor
@@ -20,16 +21,21 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object AppModule {
 
-    // --- OkHttpClient with Mock Interceptor ---
+    // --- OkHttpClient with Conditional Mock Interceptor ---
     @Provides
     @Singleton
     fun provideOkHttpClient(): OkHttpClient {
-        return OkHttpClient.Builder()
-            .addInterceptor(MockApiInterceptor()) // Add mock interceptor to simulate real API
+        val builder = OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
-            .build()
+        
+        // Only add mock interceptor in mock builds
+        if (BuildConfig.USE_MOCK_API) {
+            builder.addInterceptor(MockApiInterceptor())
+        }
+        
+        return builder.build()
     }
 
     // --- Retrofit Instance with OkHttpClient ---
@@ -37,7 +43,7 @@ object AppModule {
     @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
         return Retrofit.Builder()
-            .baseUrl("https://api.zodiac.com/") // The base URL (intercepted by MockApiInterceptor)
+            .baseUrl(BuildConfig.BASE_URL) // Use BuildConfig for base URL
             .client(okHttpClient) // Use OkHttpClient with mock interceptor
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -54,7 +60,9 @@ object AppModule {
     @Provides
     @Singleton
     fun provideZodiacDatabase(@ApplicationContext context: Context): ZodiacDatabase {
-        return ZodiacDatabase.getInstance(context)
+        // Use migrations in production builds, destructive migration in debug/mock builds
+        val useMigrations = !BuildConfig.DEBUG
+        return ZodiacDatabase.getInstance(context, useMigrations)
     }
 
     // --- Zodiac DAO ---

@@ -48,20 +48,21 @@ abstract class ZodiacDatabase : RoomDatabase() {
          * Uses double-checked locking pattern for thread safety.
          *
          * @param context Application context
+         * @param useMigrations If true, use proper migrations; if false, use destructive migration (dev only)
          * @return ZodiacDatabase instance
          */
-        fun getInstance(context: Context): ZodiacDatabase {
+        fun getInstance(context: Context, useMigrations: Boolean = false): ZodiacDatabase {
             return INSTANCE ?: synchronized(this) {
-                val instance = Room.databaseBuilder(
+                val builder = Room.databaseBuilder(
                     context.applicationContext,
                     ZodiacDatabase::class.java,
                     DATABASE_NAME
                 )
-                    .fallbackToDestructiveMigration() // For development; use proper migrations in production
-                    .addCallback(object : Callback() {
-                        override fun onCreate(db: SupportSQLiteDatabase) {
-                            super.onCreate(db)
-                            Log.d(TAG, "Database created - starting initial data seeding")
+                
+                // Choose migration strategy based on environment
+                if (useMigrations) {
+                    // Production: Use proper migrations to preserve user data
+                    Log.d(TAG, "Using migration strategy with ${DatabaseMigrations.getAllMigrations().size} migrations\")\n                    builder.addMigrations(*DatabaseMigrations.getAllMigrations())\n                } else {\n                    // Development: Use destructive migration for faster iteration\n                    Log.d(TAG, \"Using destructive migration (development mode)\")\n                    builder.fallbackToDestructiveMigration()\n                }\n                \n                val instance = builder\n                    .addCallback(object : Callback() {\n                        override fun onCreate(db: SupportSQLiteDatabase) {\n                            super.onCreate(db)\n                            Log.d(TAG, \"Database created - starting initial data seeding\")
 
                             CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
                                 try {

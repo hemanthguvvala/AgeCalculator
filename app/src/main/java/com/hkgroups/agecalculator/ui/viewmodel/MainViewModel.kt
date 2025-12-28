@@ -9,6 +9,7 @@ import com.hkgroups.agecalculator.data.repository.ZodiacRepository
 import com.hkgroups.agecalculator.domain.usecase.CalculateAgeUseCase // Import the new Use Case
 import com.hkgroups.agecalculator.domain.usecase.FindBirthdayEventsUseCase
 import com.hkgroups.agecalculator.domain.usecase.FindZodiacSignUseCase
+import com.hkgroups.agecalculator.domain.usecase.TimeCalculationUseCase
 import com.hkgroups.agecalculator.util.CosmicUtils
 import com.hkgroups.agecalculator.util.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -21,11 +22,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
+import java.time.Instant
 import java.time.LocalDate
 import java.time.Period
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.*
 import javax.inject.Inject
 
 /**
@@ -71,7 +72,8 @@ class MainViewModel @Inject constructor(
     val settingsRepository: SettingsRepository,
     private val calculateAgeUseCase: CalculateAgeUseCase,
     private val findZodiacSignUseCase: FindZodiacSignUseCase,
-    private val findBirthdayEventsUseCase: FindBirthdayEventsUseCase
+    private val findBirthdayEventsUseCase: FindBirthdayEventsUseCase,
+    private val timeCalculationUseCase: TimeCalculationUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(UiState())
@@ -159,7 +161,7 @@ class MainViewModel @Inject constructor(
             }
 
             val selectedDate =
-                Date(dateInMillis).toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
+                Instant.ofEpochMilli(dateInMillis).atZone(ZoneId.systemDefault()).toLocalDate()
 
             // Calculate age as a Period (for localization)
             val agePeriod = Period.between(selectedDate, LocalDate.now())
@@ -169,7 +171,7 @@ class MainViewModel @Inject constructor(
             val zodiac = findZodiacSignUseCase(selectedDate, zodiacSigns)
 
             val dailyTip = zodiac?.let { repository.getDailyTip(it.name) }
-            val milestoneData = calculateNextMilestone(selectedDate)
+            val milestoneData = timeCalculationUseCase.calculateNextMilestone(selectedDate)
             val horoscope = zodiac?.let { repository.getDailyHoroscope(it.name) }
 
             // Calculate cosmic features
@@ -183,11 +185,7 @@ class MainViewModel @Inject constructor(
             val userEvents = allEvents.filter { it.date.isAfter(selectedDate) }.toPersistentList()
             val birthdayEvents = findBirthdayEventsUseCase(selectedDate, allEvents).toPersistentList()
 
-            var nextBirthday = selectedDate.withYear(LocalDate.now().year)
-            if (nextBirthday.isBefore(LocalDate.now()) || nextBirthday.isEqual(LocalDate.now())) {
-                nextBirthday = nextBirthday.plusYears(1)
-            }
-            val daysUntilBirthday = Period.between(LocalDate.now(), nextBirthday).days
+            val daysUntilBirthday = timeCalculationUseCase.calculateDaysUntilBirthday(selectedDate)
 
             _uiState.value = _uiState.value.copy(
                 selectedDate = selectedDate,
@@ -224,20 +222,6 @@ class MainViewModel @Inject constructor(
             currentDate?.let {
                 loadDate(it)
             }
-        }
-    }
-
-
-    private fun calculateNextMilestone(birthDate: LocalDate): MilestoneData? {
-        val now = LocalDate.now()
-        val daysAlive = java.time.temporal.ChronoUnit.DAYS.between(birthDate, now)
-
-        val milestones = listOf(10000, 15000, 20000, 25000, 30000)
-        val nextMilestone = milestones.firstOrNull { it > daysAlive }
-
-        return nextMilestone?.let {
-            val milestoneDate = birthDate.plusDays(it.toLong())
-            MilestoneData(dayCount = it, date = milestoneDate)
         }
     }
 

@@ -12,6 +12,8 @@ import com.hkgroups.agecalculator.util.Resource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import retrofit2.HttpException
+import java.io.IOException
 import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -80,9 +82,15 @@ class ZodiacRepository @Inject constructor(
             Log.d(TAG, "Saved zodiac sign to database: $name")
             
             sign
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to fetch zodiac sign from API: $name", e)
+        } catch (e: IOException) {
+            Log.e(TAG, "Network error while fetching zodiac sign: $name", e)
             // Return local data even if incomplete, or null if nothing available
+            localSign
+        } catch (e: HttpException) {
+            Log.e(TAG, "Server error (${e.code()}) while fetching zodiac sign: $name", e)
+            localSign
+        } catch (e: Exception) {
+            Log.e(TAG, "Unexpected error while fetching zodiac sign: $name", e)
             localSign
         }
     }
@@ -124,9 +132,15 @@ class ZodiacRepository @Inject constructor(
             Log.d(TAG, "Updated database with fresh zodiac sign: $name")
             
             sign
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to fetch fresh zodiac sign from API: $name, falling back to cache", e)
+        } catch (e: IOException) {
+            Log.e(TAG, "Network error while fetching fresh zodiac sign: $name, falling back to cache", e)
             // Fall back to cached data if network fails
+            zodiacDao.getZodiacSign(name)?.toDomainModel()
+        } catch (e: HttpException) {
+            Log.e(TAG, "Server error (${e.code()}) while fetching fresh zodiac sign: $name, falling back to cache", e)
+            zodiacDao.getZodiacSign(name)?.toDomainModel()
+        } catch (e: Exception) {
+            Log.e(TAG, "Unexpected error while fetching fresh zodiac sign: $name, falling back to cache", e)
             zodiacDao.getZodiacSign(name)?.toDomainModel()
         }
     }
@@ -181,9 +195,39 @@ class ZodiacRepository @Inject constructor(
                 // For this single emission, we emit success with fresh data
                 emit(Resource.Success(data = networkSigns))
             }
-        } catch (e: Exception) {
+        } catch (e: IOException) {
             // Step 5: Network failed, but emit error with cached data so app still works
-            Log.e(TAG, "Network refresh failed: ${e.message}", e)
+            Log.e(TAG, "Network connection error during refresh: ${e.message}", e)
+            val fallbackData = zodiacDao.getAllZodiacSignsOnce().map { it.toDomainModel() }
+            
+            if (fallbackData.isNotEmpty()) {
+                emit(Resource.Error(
+                    message = "No internet connection. Using offline data.",
+                    data = fallbackData
+                ))
+            } else {
+                emit(Resource.Error(
+                    message = "No internet connection. Please connect to load data.",
+                    data = null
+                ))
+            }
+        } catch (e: HttpException) {
+            Log.e(TAG, "Server error (${e.code()}) during refresh: ${e.message}", e)
+            val fallbackData = zodiacDao.getAllZodiacSignsOnce().map { it.toDomainModel() }
+            
+            if (fallbackData.isNotEmpty()) {
+                emit(Resource.Error(
+                    message = "Server error. Using offline data.",
+                    data = fallbackData
+                ))
+            } else {
+                emit(Resource.Error(
+                    message = "Server error (${e.code()}). Please try again later.",
+                    data = null
+                ))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Unexpected error during refresh: ${e.message}", e)
             val fallbackData = zodiacDao.getAllZodiacSignsOnce().map { it.toDomainModel() }
             
             if (fallbackData.isNotEmpty()) {

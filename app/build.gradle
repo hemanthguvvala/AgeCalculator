@@ -19,6 +19,23 @@ android {
         versionName "1.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        
+        // BuildConfig fields for different environments
+        buildConfigField "String", "BASE_URL", "\"https://api.zodiac.com/\""
+    }
+    
+    flavorDimensions += "environment"
+    productFlavors {
+        create("mock") {
+            dimension = "environment"
+            applicationIdSuffix = ".mock"
+            versionNameSuffix = "-mock"
+            buildConfigField("Boolean", "USE_MOCK_API", "true")
+        }
+        create("prod") {
+            dimension = "environment"
+            buildConfigField("Boolean", "USE_MOCK_API", "false")
+        }
     }
 
     buildTypes {
@@ -39,6 +56,7 @@ android {
 
     buildFeatures {
         compose true
+        buildConfig true
     }
 
     // Optional: add this block if Compose compiler extension version needed (usually BOM handles this)

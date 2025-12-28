@@ -21,6 +21,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.hkgroups.agecalculator.data.repository.SettingsRepository
+import com.hkgroups.agecalculator.ui.navigation.NavigationArgs
 import com.hkgroups.agecalculator.ui.navigation.Screen
 import com.hkgroups.agecalculator.ui.screen.BirthdayEventsScreen
 import com.hkgroups.agecalculator.ui.screen.CompatibilityDetailScreen
@@ -86,20 +87,18 @@ class MainActivity : ComponentActivity() {
                         composable(
                             route = Screen.Compatibility.route,
                             arguments = listOf(
-                                navArgument("userSignName") { type = NavType.StringType },
-                                navArgument("partnerSignName") { type = NavType.StringType }
+                                navArgument(NavigationArgs.CompatibilityArgs.USER_SIGN_KEY) { type = NavType.StringType },
+                                navArgument(NavigationArgs.CompatibilityArgs.PARTNER_SIGN_KEY) { type = NavType.StringType }
                             )
                         ) { backStackEntry ->
-                            // Extract the arguments
-                            val userSignName = backStackEntry.arguments?.getString("userSignName")
-                            val partnerSignName =
-                                backStackEntry.arguments?.getString("partnerSignName")
+                            // Extract the arguments using type-safe helper
+                            val args = NavigationArgs.CompatibilityArgs.from(backStackEntry)
 
                             // Pass the arguments to the screen
                             CompatibilityDetailScreen(
                                 navController = navController,
-                                userSignName = userSignName,
-                                partnerSignName = partnerSignName
+                                userSignName = args?.userSignName,
+                                partnerSignName = args?.partnerSignName
                             )
                         }
 
@@ -113,13 +112,14 @@ class MainActivity : ComponentActivity() {
 
                         composable(
                             route = Screen.ZodiacDetail.route,
-                            arguments = listOf(navArgument("signName") {
+                            arguments = listOf(navArgument(NavigationArgs.ZodiacDetailArgs.SIGN_NAME_KEY) {
                                 type = NavType.StringType
                             })
                         ) { backStackEntry ->
+                            val args = NavigationArgs.ZodiacDetailArgs.from(backStackEntry)
                             ZodiacDetailScreen(
                                 navController = navController,
-                                signName = backStackEntry.arguments?.getString("signName")
+                                signName = args?.signName
                             )
                         }
                         composable(route = Screen.CompatibilityList.route) {
