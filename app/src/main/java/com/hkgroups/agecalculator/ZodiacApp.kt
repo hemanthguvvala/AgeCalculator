@@ -8,6 +8,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.hkgroups.agecalculator.worker.HoroscopeNotificationWorker
 import dagger.hilt.android.HiltAndroidApp
+import java.util.Calendar
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
@@ -30,15 +31,34 @@ class ZodiacAgeApp : Application(), Configuration.Provider {
     }
 
     private fun scheduleDailyHoroscope() {
-        // Create a periodic work request to run roughly every 24 hours
+        // Calculate the initial delay to next 8:00 AM
+        val currentCalendar = Calendar.getInstance()
+        val targetCalendar = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 8)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+            
+            // If 8:00 AM has already passed today, schedule for tomorrow
+            if (before(currentCalendar)) {
+                add(Calendar.DAY_OF_MONTH, 1)
+            }
+        }
+        
+        // Calculate delay in milliseconds
+        val initialDelayMillis = targetCalendar.timeInMillis - currentCalendar.timeInMillis
+        
+        // Create a periodic work request that runs every 24 hours starting at 8:00 AM
         val dailyWorkRequest = PeriodicWorkRequestBuilder<HoroscopeNotificationWorker>(
             24, TimeUnit.HOURS
-        ).build()
+        )
+            .setInitialDelay(initialDelayMillis, TimeUnit.MILLISECONDS)
+            .build()
 
-        // Enqueue the work, keeping the existing work if it's already scheduled
+        // Enqueue the work, replacing any existing work to respect new schedule
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
             "DailyHoroscopeNotification",
-            ExistingPeriodicWorkPolicy.KEEP,
+            ExistingPeriodicWorkPolicy.REPLACE, // Replace to ensure 8:00 AM schedule
             dailyWorkRequest
         )
     }

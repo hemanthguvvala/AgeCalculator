@@ -1,5 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.ZodiacAge" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Theme.ZodiacAge" parent="Theme.SplashScreen">
+        <!-- Splash screen background color -->
+        <item name="windowSplashScreenBackground">@color/purple_700</item>
+        <!-- Splash screen icon (optional) -->
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        <!-- Duration of splash screen animation in milliseconds -->
+        <item name="windowSplashScreenAnimationDuration">1000</item>
+        <!-- Post-splash screen theme -->
+        <item name="postSplashScreenTheme">@style/Theme.App.Main</item>
+    </style>
+    
+    <style name="Theme.App.Main" parent="Theme.Material3.DayNight.NoActionBar">
     </style>
 </resources>

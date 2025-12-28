@@ -34,12 +34,20 @@ class HoroscopeNotificationWorker @AssistedInject constructor(
         val birthDate =
             Instant.ofEpochMilli(savedBirthDateMillis).atZone(ZoneId.systemDefault()).toLocalDate()
 
-        // Find their sign and get the horoscope
-        val allSigns = zodiacRepository.getZodiacSigns()
-        val userSign = findZodiacSignUseCase(birthDate, allSigns) ?: return Result.failure()
-        val horoscope = zodiacRepository.getDailyHoroscope(userSign.name)
+        // Find their sign using cached data first (for quick lookup)
+        val cachedSigns = zodiacRepository.getZodiacSignsLegacy()
+        val userSign = findZodiacSignUseCase(birthDate, cachedSigns) ?: return Result.failure()
+        
+        // Fetch FRESH sign data from network (mock API) to get randomized daily horoscope
+        // This bypasses the cache to ensure we get new randomized data from MockApiInterceptor
+        val freshSign = zodiacRepository.getFreshZodiacSign(userSign.name)
+        
+        // Get the horoscope from fresh data if available, otherwise use repository method
+        val horoscope = freshSign?.let { 
+            zodiacRepository.getDailyHoroscope(it.name) 
+        } ?: zodiacRepository.getDailyHoroscope(userSign.name)
 
-        // Show the notification
+        // Show the notification with fresh data
         notificationHelper.showHoroscopeNotification(userSign.name, horoscope)
 
         return Result.success()

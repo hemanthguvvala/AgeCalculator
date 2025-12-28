@@ -12,40 +12,53 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-private val DarkColorScheme = darkColorScheme(
-    primary = MutedGold,
-    secondary = WarmSand,
-    background = Color(0xFF1C1B1F), // A standard dark background
-    surface = Color(0xFF2A282E),
-    onPrimary = Charcoal,
-    onSecondary = Charcoal,
-    onBackground = WarmSand,
-    onSurface = WarmSand
+// Deep Space Glassmorphism Color Scheme
+private val DeepSpaceColorScheme = darkColorScheme(
+    primary = PrimaryNeon,
+    secondary = NeptuneBlue,
+    tertiary = PurpleAccent,
+    background = BackgroundDark,
+    surface = SurfaceGlass,
+    surfaceVariant = Color(0xFFFFFFFF).copy(alpha = 0.08f),
+    onPrimary = Color.White,
+    onSecondary = Color.White,
+    onTertiary = Color.White,
+    onBackground = Color.White,
+    onSurface = Color.White,
+    primaryContainer = Color(0xFF4D96FF).copy(alpha = 0.15f),
+    onPrimaryContainer = Color.White,
+    secondaryContainer = Color(0xFF9B59B6).copy(alpha = 0.15f),
+    onSecondaryContainer = Color.White,
+    tertiaryContainer = Color(0xFFFF6B6B).copy(alpha = 0.15f),
+    onTertiaryContainer = Color.White,
+    outline = BorderGlass,
+    outlineVariant = Color(0xFFFFFFFF).copy(alpha = 0.05f)
 )
 
+// Legacy light scheme for compatibility
 private val LightColorScheme = lightColorScheme(
-    primary = MutedGold,
-    secondary = Charcoal,
-    background = WarmSand,
+    primary = PrimaryNeon,
+    secondary = Color(0xFF36454F),
+    background = Color(0xFFF4EAD5),
     surface = Color.White,
     onPrimary = Color.White,
     onSecondary = Color.White,
-    onBackground = Charcoal,
-    onSurface = Charcoal
+    onBackground = Color(0xFF36454F),
+    onSurface = Color(0xFF36454F)
 )
 
 @Composable
 fun ZodiacAgeTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = true, // Default to dark theme for Deep Space aesthetic
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+    val colorScheme = if (darkTheme) DeepSpaceColorScheme else LightColorScheme
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.primary.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            window.statusBarColor = BackgroundDark.toArgb()
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
         }
     }
 

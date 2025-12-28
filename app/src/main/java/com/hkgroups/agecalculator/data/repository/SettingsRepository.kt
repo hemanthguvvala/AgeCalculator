@@ -47,4 +47,11 @@ class SettingsRepository @Inject constructor(@ApplicationContext private val con
             settings[SAVED_BIRTH_DATE] = dateInMillis
         }
     }
+
+    // --- NEW: Function to clear the birth date (reset data) ---
+    suspend fun clearBirthDate() {
+        context.dataStore.edit { settings ->
+            settings.remove(SAVED_BIRTH_DATE)
+        }
+    }
 }

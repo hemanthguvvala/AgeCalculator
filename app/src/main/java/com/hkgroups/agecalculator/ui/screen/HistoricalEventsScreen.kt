@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -34,6 +35,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.hkgroups.agecalculator.R
 import com.hkgroups.agecalculator.data.model.HistoricalEvent
+import com.hkgroups.agecalculator.ui.screen.components.EmptyState
 import com.hkgroups.agecalculator.ui.viewmodel.MainViewModel
 import java.time.format.DateTimeFormatter
 
@@ -70,7 +72,10 @@ fun HistoricalEventsScreen(
                 if (uiState.selectedDate == null) {
                     CircularProgressIndicator()
                 } else {
-                    Text(stringResource(R.string.history_no_events_found))
+                    EmptyState(
+                        message = stringResource(R.string.history_no_events_found),
+                        icon = Icons.Default.DateRange
+                    )
                 }
             }
         } else {

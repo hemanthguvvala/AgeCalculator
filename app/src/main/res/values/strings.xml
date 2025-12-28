@@ -1,14 +1,78 @@
 <resources>
-    <string name="app_name">Zodaic Age</string>
+    <!-- App Name -->
+    <string name="app_name">Zodiac Age</string>
 
-    <string name="welcome_title">What\'s your story?</string>
-    <string name="welcome_button_text">Select Your Date of Birth</string>
+    <!-- Welcome Screen -->
+    <string name="welcome_title">Discover Your Cosmic Age</string>
+    <string name="welcome_button_text">Select Birth Date</string>
 
-    <string name="history_screen_title">Events in Your Lifetime</string>
-    <string name="history_no_events_found">No historical events found for your lifetime.</string>
+    <!-- History Screen -->
+    <string name="history_screen_title">Life History</string>
+    <string name="history_no_events_found">No historical events found for this view.</string>
     <string name="history_back_button_description">Back</string>
 
+    <!-- Compatibility Screen -->
     <string name="compatibility_screen_title">%1$s &amp; %2$s</string>
     <string name="compatibility_rating">Rating: %1$s</string>
     <string name="compatibility_loading">Loading details…</string>
+    
+    <!-- Age Display -->
+    <string name="age_years_months_days">%1$d years, %2$d months, %3$d days</string>
+    
+    <!-- Birthday Countdown -->
+    <string name="birthday_countdown">%d days left</string>
+    <string name="birthday_today">Happy Birthday! 🎉</string>
+    
+    <!-- Milestone -->
+    <string name="milestone_upcoming" formatted="false">%s days on %s</string>
+    <string name="milestone_all_passed">All milestones passed!</string>
+    
+    <!-- Empty States -->
+    <string name="empty_state_no_events">No events to display</string>
+    <string name="empty_state_select_date">Select a date to view events</string>
+    
+    <!-- Info Row Titles -->
+    <string name="info_next_birthday">Next Birthday</string>
+    <string name="info_upcoming_milestone">Next Milestone</string>
+    
+    <!-- Cosmic Dashboard -->
+    <string name="cosmic_age_title">YOUR COSMIC AGE</string>
+    <string name="earth_standard_time">Earth Standard Time</string>
+    <string name="live_data">LIVE DATA</string>
+    <string name="planetary_relativity">Planetary Relativity</string>
+    <string name="view_all">VIEW ALL</string>
+    <string name="years_short">yr</string>
+    <string name="years">Years</string>
+    <string name="cosmic_avatar">COSMIC AVATAR</string>
+    <string name="year_of_dragon">Year of the\nDragon</string>
+    <string name="dragon_description">Power, luck, and\nstrength aligned with\nstars.</string>
+    <string name="view_profile">View Profile</string>
+    <string name="did_you_know">Did you know?</string>
+    <string name="venus_fact">On Venus, a single rotation on its axis takes longer than it takes to orbit the Sun. A day is longer than a year.</string>
+    
+    <!-- Planet Names -->
+    <string name="planet_mars">Mars</string>
+    <string name="planet_jupiter">Jupiter</string>
+    <string name="planet_neptune">Neptune</string>
+    <string name="planet_earth">Earth</string>
+    
+    <!-- Actions -->
+    <string name="share_cosmic_age">Share Cosmic Age</string>
+    <string name="refresh_data">Refresh Data</string>
+    <string name="share_via">Share via</string>
+    
+    <!-- Navigation -->
+    <string name="nav_dashboard">Dashboard</string>
+    <string name="nav_rocket">Rocket</string>
+    <string name="nav_explore">Explore</string>
+    <string name="nav_settings">Settings</string>
+    
+    <!-- Loading -->
+    <string name="loading_cosmic_data">Loading cosmic data…</string>
+    <string name="refreshing">Refreshing…</string>
+    
+    <!-- Accessibility -->
+    <string name="menu_button">Menu</string>
+    <string name="profile_button">Profile</string>
+    <string name="share_button">Share</string>
 </resources>

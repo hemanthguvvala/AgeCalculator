@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -24,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.hkgroups.agecalculator.ui.screen.components.EmptyState
 import com.hkgroups.agecalculator.ui.viewmodel.MainViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -57,7 +59,10 @@ fun BirthdayEventsScreen(
                 if (uiState.selectedDate == null) {
                     CircularProgressIndicator()
                 } else {
-                    Text("No historical events found for this date.")
+                    EmptyState(
+                        message = "No historical events found for this date.",
+                        icon = Icons.Default.Info
+                    )
                 }
             }
         } else {

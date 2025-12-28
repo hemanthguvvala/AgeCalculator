@@ -9,6 +9,8 @@ import com.hkgroups.agecalculator.data.repository.ZodiacRepository
 import com.hkgroups.agecalculator.domain.usecase.CalculateAgeUseCase // Import the new Use Case
 import com.hkgroups.agecalculator.domain.usecase.FindBirthdayEventsUseCase
 import com.hkgroups.agecalculator.domain.usecase.FindZodiacSignUseCase
+import com.hkgroups.agecalculator.util.CosmicUtils
+import com.hkgroups.agecalculator.util.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.collections.immutable.PersistentList
 import kotlinx.collections.immutable.persistentListOf
@@ -26,18 +28,41 @@ import java.time.format.DateTimeFormatter
 import java.util.*
 import javax.inject.Inject
 
+/**
+ * Represents milestone data for localization.
+ * @param dayCount The milestone day number (e.g., 10000, 15000)
+ * @param date The date when the milestone will occur
+ */
+data class MilestoneData(
+    val dayCount: Int,
+    val date: LocalDate
+)
+
+/**
+ * Represents age data as a Period for localization.
+ * @param period The time period representing the age
+ */
+data class AgeData(
+    val period: Period
+)
 
 data class UiState(
     val selectedDate: LocalDate? = null,
-    val age: String? = null,
+    val ageData: AgeData? = null, // Changed from String to AgeData (contains Period)
     val zodiacSign: ZodiacSign? = null,
-    val birthdayCountdown: String? = null,
+    val daysUntilBirthday: Int? = null, // Changed from String to Int
     val dailyTip: String? = null,
-    val milestone: String? = null,
+    val milestoneData: MilestoneData? = null, // Changed from String to MilestoneData
     val selectedCompatibilitySign: ZodiacSign? = null,
     val horoscope: String? = null,
     val historicalEvents: PersistentList<HistoricalEvent> = persistentListOf(),
-    val birthdayEvents: PersistentList<HistoricalEvent> = persistentListOf()
+    val birthdayEvents: PersistentList<HistoricalEvent> = persistentListOf(),
+    // New cosmic features
+    val chineseZodiac: String? = null,
+    val planetaryAges: List<Pair<String, String>> = emptyList(),
+    val birthYearTrivia: String? = null,
+    val isLoading: Boolean = false,
+    val errorMessage: String? = null
 )
 
 @HiltViewModel
@@ -52,74 +77,167 @@ class MainViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(UiState())
     val uiState = _uiState.asStateFlow()
 
-    val zodiacSigns = repository.getZodiacSigns()
+    private val _zodiacSigns = MutableStateFlow<List<ZodiacSign>>(emptyList())
+    val zodiacSigns: List<ZodiacSign>
+        get() = _zodiacSigns.value
 
     init {
-        // --- NEW: Check for a saved date on startup ---
+        // Collect zodiac signs Flow with Resource wrapper
         viewModelScope.launch {
-            val savedDate = settingsRepository.savedBirthDate.first()
-            savedDate?.let {
-                // If a date is found, populate the screen
-                onDateSelected(it)
+            repository.getZodiacSigns().collect { resource ->
+                when (resource) {
+                    is Resource.Loading -> {
+                        // Update loading state
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = true,
+                            errorMessage = null
+                        )
+                        // Use cached data if available
+                        resource.data?.let { _zodiacSigns.value = it }
+                    }
+                    is Resource.Success -> {
+                        // Data loaded successfully
+                        _zodiacSigns.value = resource.data ?: emptyList()
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            errorMessage = null
+                        )
+                    }
+                    is Resource.Error -> {
+                        // Error occurred, but we might have cached data
+                        resource.data?.let { _zodiacSigns.value = it }
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            errorMessage = resource.message
+                        )
+                    }
+                }
+            }
+        }
+
+        // Reactive Flow: Listen to birth date changes
+        viewModelScope.launch {
+            settingsRepository.savedBirthDate.collect { savedDate ->
+                if (savedDate == null) {
+                    // No date saved, reset to welcome screen
+                    resetUiState()
+                } else {
+                    // Date exists, load the data
+                    loadDate(savedDate)
+                }
             }
         }
     }
 
+    /**
+     * Called when user selects a birth date.
+     * Only saves to repository - UI update happens via Flow collection.
+     */
     fun onDateSelected(dateInMillis: Long) {
         viewModelScope.launch {
             settingsRepository.saveBirthDate(dateInMillis)
         }
+    }
 
-        val selectedDate =
-            Date(dateInMillis).toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
+    /**
+     * Resets UI state to initial empty values (Welcome Screen).
+     */
+    private fun resetUiState() {
+        _uiState.value = UiState()
+    }
 
-        val ageString = calculateAgeUseCase(selectedDate)
+    /**
+     * Loads and calculates all data for a given birth date timestamp.
+     * Updates the UI state with calculated values.
+     */
+    private fun loadDate(dateInMillis: Long) {
+        viewModelScope.launch {
+            // Don't process if zodiac signs aren't loaded yet
+            if (zodiacSigns.isEmpty() && _uiState.value.isLoading) {
+                // Data is still loading, calculation will be triggered after data loads
+                return@launch
+            }
 
-        // --- DELEGATE ZODIAC SIGN LOGIC TO THE USE CASE ---
-        val zodiac = findZodiacSignUseCase(selectedDate, zodiacSigns)
+            val selectedDate =
+                Date(dateInMillis).toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
 
-        val dailyTip = zodiac?.let { repository.getDailyTip(it.name) }
-        val milestone = calculateNextMilestone(selectedDate)
-        val horoscope = zodiac?.let { repository.getDailyHoroscope(it.name) }
+            // Calculate age as a Period (for localization)
+            val agePeriod = Period.between(selectedDate, LocalDate.now())
+            val ageData = AgeData(agePeriod)
 
-        val allEvents = repository.getHistoricalEvents()
-        val userEvents = allEvents.filter { it.date.isAfter(selectedDate) }.toPersistentList()
-        val birthdayEvents = findBirthdayEventsUseCase(selectedDate, allEvents).toPersistentList()
+            // --- DELEGATE ZODIAC SIGN LOGIC TO THE USE CASE ---
+            val zodiac = findZodiacSignUseCase(selectedDate, zodiacSigns)
 
-        var nextBirthday = selectedDate.withYear(LocalDate.now().year)
-        if (nextBirthday.isBefore(LocalDate.now()) || nextBirthday.isEqual(LocalDate.now())) {
-            nextBirthday = nextBirthday.plusYears(1)
+            val dailyTip = zodiac?.let { repository.getDailyTip(it.name) }
+            val milestoneData = calculateNextMilestone(selectedDate)
+            val horoscope = zodiac?.let { repository.getDailyHoroscope(it.name) }
+
+            // Calculate cosmic features
+            val birthYear = selectedDate.year
+            val chineseZodiac = CosmicUtils.getChineseZodiac(birthYear)
+            val earthAgeInDays = java.time.temporal.ChronoUnit.DAYS.between(selectedDate, LocalDate.now())
+            val planetaryAges = CosmicUtils.calculatePlanetaryAges(earthAgeInDays)
+            val birthYearTrivia = CosmicUtils.getBirthYearTrivia(birthYear)
+
+            val allEvents = repository.getHistoricalEvents()
+            val userEvents = allEvents.filter { it.date.isAfter(selectedDate) }.toPersistentList()
+            val birthdayEvents = findBirthdayEventsUseCase(selectedDate, allEvents).toPersistentList()
+
+            var nextBirthday = selectedDate.withYear(LocalDate.now().year)
+            if (nextBirthday.isBefore(LocalDate.now()) || nextBirthday.isEqual(LocalDate.now())) {
+                nextBirthday = nextBirthday.plusYears(1)
+            }
+            val daysUntilBirthday = Period.between(LocalDate.now(), nextBirthday).days
+
+            _uiState.value = _uiState.value.copy(
+                selectedDate = selectedDate,
+                ageData = ageData,
+                zodiacSign = zodiac,
+                daysUntilBirthday = daysUntilBirthday,
+                dailyTip = dailyTip,
+                milestoneData = milestoneData,
+                horoscope = horoscope,
+                historicalEvents = userEvents,
+                birthdayEvents = birthdayEvents,
+                chineseZodiac = chineseZodiac,
+                planetaryAges = planetaryAges,
+                birthYearTrivia = birthYearTrivia
+            )
         }
-        val daysUntilBirthday = Period.between(LocalDate.now(), nextBirthday).days
-        val countdownString = "Your next birthday is in $daysUntilBirthday days!"
+    }
 
-        _uiState.value = UiState(
-            selectedDate = selectedDate,
-            age = ageString,
-            zodiacSign = zodiac,
-            birthdayCountdown = countdownString,
-            dailyTip = dailyTip,
-            milestone = milestone,
-            horoscope = horoscope,
-            historicalEvents = userEvents,
-            birthdayEvents = birthdayEvents
-        )
+    /**
+     * Clears saved birth date data, returning user to Welcome Screen.
+     */
+    fun clearData() {
+        viewModelScope.launch {
+            settingsRepository.clearBirthDate()
+        }
+    }
+
+    /**
+     * Refreshes all data for the currently selected date.
+     */
+    fun refreshData() {
+        viewModelScope.launch {
+            val currentDate = settingsRepository.savedBirthDate.first()
+            currentDate?.let {
+                loadDate(it)
+            }
+        }
     }
 
 
-    private fun calculateNextMilestone(birthDate: LocalDate): String {
+    private fun calculateNextMilestone(birthDate: LocalDate): MilestoneData? {
         val now = LocalDate.now()
         val daysAlive = java.time.temporal.ChronoUnit.DAYS.between(birthDate, now)
 
         val milestones = listOf(10000, 15000, 20000, 25000, 30000)
         val nextMilestone = milestones.firstOrNull { it > daysAlive }
 
-        return if (nextMilestone != null) {
-            val milestoneDate = birthDate.plusDays(nextMilestone.toLong())
-            val formattedDate = milestoneDate.format(DateTimeFormatter.ofPattern("dd MMMM yyyy"))
-            "Your ${"%,d".format(nextMilestone)}th day will be on $formattedDate."
-        } else {
-            "You've passed all the major day milestones!"
+        return nextMilestone?.let {
+            val milestoneDate = birthDate.plusDays(it.toLong())
+            MilestoneData(dayCount = it, date = milestoneDate)
         }
     }
 

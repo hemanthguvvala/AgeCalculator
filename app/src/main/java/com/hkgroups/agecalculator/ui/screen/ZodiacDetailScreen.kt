@@ -58,7 +58,7 @@ fun ZodiacDetailScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
-                    .padding(16.dp)
+                    .padding(12.dp)
                     .verticalScroll(rememberScrollState()), // Make the column scrollable
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {

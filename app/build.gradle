@@ -56,6 +56,9 @@ dependencies {
     implementation 'androidx.core:core-ktx:1.16.0'
     implementation 'androidx.activity:activity-ktx:1.10.1'
     implementation 'androidx.activity:activity-compose:1.10.1'
+    
+    // Splash Screen
+    implementation 'androidx.core:core-splashscreen:1.0.1'
 
     implementation platform('androidx.compose:compose-bom:2025.07.00')
     implementation 'androidx.compose.ui:ui'
@@ -72,6 +75,11 @@ dependencies {
     implementation "androidx.lifecycle:lifecycle-viewmodel-compose:2.9.2"
     implementation "androidx.navigation:navigation-compose:2.9.2"
     implementation "androidx.datastore:datastore-preferences:1.1.7"
+
+    // Room Database
+    implementation "androidx.room:room-runtime:2.7.0-alpha12"
+    implementation "androidx.room:room-ktx:2.7.0-alpha12"
+    kapt "androidx.room:room-compiler:2.7.0-alpha12"
 
     // Hilt dependencies (all aligned to 2.57)
     implementation "com.google.dagger:hilt-android:2.57"
