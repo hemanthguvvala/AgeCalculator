@@ -62,7 +62,19 @@ abstract class ZodiacDatabase : RoomDatabase() {
                 // Choose migration strategy based on environment
                 if (useMigrations) {
                     // Production: Use proper migrations to preserve user data
-                    Log.d(TAG, "Using migration strategy with ${DatabaseMigrations.getAllMigrations().size} migrations\")\n                    builder.addMigrations(*DatabaseMigrations.getAllMigrations())\n                } else {\n                    // Development: Use destructive migration for faster iteration\n                    Log.d(TAG, \"Using destructive migration (development mode)\")\n                    builder.fallbackToDestructiveMigration()\n                }\n                \n                val instance = builder\n                    .addCallback(object : Callback() {\n                        override fun onCreate(db: SupportSQLiteDatabase) {\n                            super.onCreate(db)\n                            Log.d(TAG, \"Database created - starting initial data seeding\")
+                    Log.d(TAG, "Using migration strategy with ${DatabaseMigrations.getAllMigrations().size} migrations")
+                    builder.addMigrations(*DatabaseMigrations.getAllMigrations())
+                } else {
+                    // Development: Use destructive migration for faster iteration
+                    Log.d(TAG, "Using destructive migration (development mode)")
+                    builder.fallbackToDestructiveMigration()
+                }
+                
+                val instance = builder
+                    .addCallback(object : Callback() {
+                        override fun onCreate(db: SupportSQLiteDatabase) {
+                            super.onCreate(db)
+                            Log.d(TAG, "Database created - starting initial data seeding")
 
                             CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
                                 try {
