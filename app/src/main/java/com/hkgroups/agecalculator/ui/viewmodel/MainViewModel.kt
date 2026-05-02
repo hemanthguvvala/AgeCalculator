@@ -83,6 +83,9 @@ class MainViewModel @Inject constructor(
     val zodiacSigns: List<ZodiacSign>
         get() = _zodiacSigns.value
 
+    /** Compose-friendly StateFlow for collecting in @Composable screens. */
+    val zodiacSignsState = _zodiacSigns.asStateFlow()
+
     init {
         // Collect zodiac signs Flow with Resource wrapper
         viewModelScope.launch {

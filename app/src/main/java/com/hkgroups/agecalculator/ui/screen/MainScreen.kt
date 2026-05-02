@@ -47,6 +47,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,10 +65,12 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.hkgroups.agecalculator.R
+import com.hkgroups.agecalculator.data.model.ZodiacSign
 import com.hkgroups.agecalculator.ui.navigation.Screen
 import com.hkgroups.agecalculator.ui.screen.components.*
 import com.hkgroups.agecalculator.ui.theme.*
 import com.hkgroups.agecalculator.ui.viewmodel.MainViewModel
+import java.time.LocalDate
 import java.util.*
 
 @Composable
@@ -209,9 +212,17 @@ fun CosmicDashboardScreen(viewModel: MainViewModel, navController: NavController
                 
                 // Age Ticker - System Stats
                 AgeTickerSection(liveAge = liveAge, planetCount = uiState.planetaryAges.size)
-                
+
+                Spacer(modifier = Modifier.height(28.dp))
+
+                // Daily engagement loop — streak, reveal, lucky cards, mood
+                DailyEngagementSection(
+                    horoscope = uiState.horoscope,
+                    zodiacSign = uiState.zodiacSign
+                )
+
                 Spacer(modifier = Modifier.height(32.dp))
-                
+
                 // Planetary System Section
                 if (uiState.planetaryAges.isNotEmpty()) {
                     PlanetarySystemSection(
@@ -267,9 +278,9 @@ fun CosmicDashboardScreen(viewModel: MainViewModel, navController: NavController
                 selectedNavIndex = index
                 when (index) {
                     0 -> { /* Already on home */ }
-                    1 -> navController.navigate(Screen.History.route)
-                    2 -> navController.navigate(Screen.ZodiacExplorer.route)
-                    3 -> navController.navigate(Screen.Settings.route)
+                    1 -> navController.navigate(Screen.ZodiacExplorer.route)
+                    2 -> navController.navigate(Screen.CompatibilityList.route)
+                    3 -> navController.navigate(Screen.Profile.route)
                 }
             },
             modifier = Modifier
@@ -850,4 +861,104 @@ private fun showDatePicker(context: Context, onDateSelected: (Long) -> Unit) {
         datePicker.maxDate = Date().time
         show()
     }
+}
+
+// ---------- Daily engagement section (streak, reveal, lucky, mood) ----------
+
+@Composable
+private fun DailyEngagementSection(
+    horoscope: String?,
+    zodiacSign: ZodiacSign?
+) {
+    val today = remember { LocalDate.now() }
+    val signName = zodiacSign?.name ?: "Cosmic"
+    val seedKey = "$today-$signName"
+    val seed = remember(seedKey) { kotlin.math.abs(seedKey.hashCode()) }
+
+    var revealed by rememberSaveable(seedKey) { mutableStateOf(false) }
+
+    val luckyNumber = remember(seed) { (seed % 99) + 1 }
+    val (luckyColorName, luckyColor) = remember(seed) { dailyLuckyColor(seed) }
+    val (moodEmoji, moodName, moodDesc) = remember(seed) { dailyMood(seed) }
+    val displayHoroscope = horoscope?.takeIf { it.isNotBlank() }
+        ?: remember(seed) { dailyHoroscopeFallback(seed, zodiacSign) }
+
+    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
+        ) {
+            // Static "1-day streak" until DataStore wiring lands.
+            StreakPill(days = 1)
+        }
+
+        Spacer(Modifier.height(14.dp))
+
+        DailyRevealCard(
+            horoscope = displayHoroscope,
+            revealed = revealed,
+            onReveal = { revealed = true }
+        )
+
+        Spacer(Modifier.height(14.dp))
+
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            LuckyNumberCard(
+                luckyNumber = luckyNumber,
+                modifier = Modifier.weight(1f)
+            )
+            LuckyColorCard(
+                colorName = luckyColorName,
+                color = luckyColor,
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        Spacer(Modifier.height(14.dp))
+
+        MoodCard(
+            emoji = moodEmoji,
+            moodName = moodName,
+            description = moodDesc
+        )
+    }
+}
+
+private fun dailyLuckyColor(seed: Int): Pair<String, Color> {
+    val palette = listOf(
+        "Cosmic Violet" to Color(0xFF9B59B6),
+        "Stardust Pink" to Color(0xFFFF6B9D),
+        "Nebula Teal" to Color(0xFF4ECDC4),
+        "Solar Gold" to Color(0xFFFFC857),
+        "Mercury Silver" to Color(0xFFB8B8B8),
+        "Mars Crimson" to Color(0xFFFF6B6B),
+        "Neptune Blue" to Color(0xFF4D96FF),
+        "Saturn Bronze" to Color(0xFFE0C097)
+    )
+    return palette[seed % palette.size]
+}
+
+private fun dailyMood(seed: Int): Triple<String, String, String> {
+    val moods = listOf(
+        Triple("🌟", "Radiant", "Confidence flows through you today"),
+        Triple("🌙", "Reflective", "A quiet day for inner work"),
+        Triple("⚡", "Charged", "Channel your energy into one big move"),
+        Triple("🌊", "Flowing", "Let the day unfold without forcing it"),
+        Triple("🔥", "Bold", "Speak the thing you've been holding back"),
+        Triple("✨", "Magnetic", "People will gravitate toward your light"),
+        Triple("🌸", "Tender", "Be gentle with yourself and others")
+    )
+    return moods[seed % moods.size]
+}
+
+private fun dailyHoroscopeFallback(seed: Int, sign: ZodiacSign?): String {
+    val signLabel = sign?.name ?: "your sign"
+    val templates = listOf(
+        "The stars favor $signLabel today. Trust an instinct you've been doubting — it's pointing somewhere worth going. One small choice this morning shapes the rest of the day.",
+        "Today asks $signLabel to slow down before deciding. Energy is plentiful but scattered — pick the one thing that matters and let the rest wait.",
+        "A quiet conversation reveals more than a loud one for $signLabel today. Listen for what isn't said. The cosmos rewards patience.",
+        "$signLabel, your intuition is sharper than usual. Don't second-guess the first answer that surfaces — it's the right one. Make the call.",
+        "An old idea returns with new energy for $signLabel today. What you set aside last month is worth picking back up. Trust the timing."
+    )
+    return templates[seed % templates.size]
 }

@@ -26,6 +26,7 @@ import com.hkgroups.agecalculator.ui.navigation.Screen
 import com.hkgroups.agecalculator.ui.screen.BirthdayEventsScreen
 import com.hkgroups.agecalculator.ui.screen.CompatibilityDetailScreen
 import com.hkgroups.agecalculator.ui.screen.CompatibilityListScreen
+import com.hkgroups.agecalculator.ui.screen.CosmicProfileScreen
 import com.hkgroups.agecalculator.ui.screen.HistoricalEventsScreen
 import com.hkgroups.agecalculator.ui.screen.MainScreen
 import com.hkgroups.agecalculator.ui.screen.PrivacyPolicyScreen
@@ -69,7 +70,7 @@ class MainActivity : ComponentActivity() {
         
         askNotificationPermission()
         setContent {
-            val isDarkMode by settingsRepository.isDarkMode.collectAsState(initial = false)
+            val isDarkMode by settingsRepository.isDarkMode.collectAsState(initial = true)
             ZodiacAgeTheme(darkTheme = isDarkMode) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
@@ -133,6 +134,10 @@ class MainActivity : ComponentActivity() {
 
                         composable(route = Screen.Settings.route) {
                             SettingsScreen(navController = navController)
+                        }
+
+                        composable(route = Screen.Profile.route) {
+                            CosmicProfileScreen(navController = navController)
                         }
 
                         composable(route = Screen.PrivacyPolicy.route) {
