@@ -1,22 +1,21 @@
 package com.hkgroups.agecalculator.ui.screen
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -26,6 +25,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.hkgroups.agecalculator.ui.screen.components.EmptyState
+import com.hkgroups.agecalculator.ui.screen.components.StarryBackground
+import com.hkgroups.agecalculator.ui.theme.BackgroundDark
+import com.hkgroups.agecalculator.ui.theme.PrimaryNeon
 import com.hkgroups.agecalculator.ui.viewmodel.MainViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -37,44 +39,51 @@ fun BirthdayEventsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val events = uiState.birthdayEvents
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("On This Day In History") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(BackgroundDark)
+    ) {
+        StarryBackground {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+            ) {
+                CosmicScreenTopBar(
+                    title = "On This Day In History",
+                    onBack = { navController.popBackStack() }
+                )
+
+                when {
+                    events.isEmpty() && uiState.selectedDate == null -> {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = PrimaryNeon)
+                        }
                     }
-                }
-            )
-        }
-    ) { paddingValues ->
-        if (events.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentAlignment = Alignment.Center
-            ) {
-                if (uiState.selectedDate == null) {
-                    CircularProgressIndicator()
-                } else {
-                    EmptyState(
-                        message = "No historical events found for this date.",
-                        icon = Icons.Default.Info
-                    )
-                }
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                items(items = events, key = { it.date.toString() + it.title }) { event ->
-                    EventCard(event = event) // We can reuse the EventCard from HistoricalEventsScreen
+                    events.isEmpty() -> {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            EmptyState(
+                                message = "No historical events found for this date.",
+                                icon = Icons.Default.Info
+                            )
+                        }
+                    }
+                    else -> {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(
+                                items = events,
+                                key = { it.date.toString() + it.title }
+                            ) { event ->
+                                EventCard(event = event)
+                            }
+                            item { Spacer(Modifier.height(24.dp)) }
+                        }
+                    }
                 }
             }
         }

@@ -86,6 +86,24 @@ class MainViewModel @Inject constructor(
     /** Compose-friendly StateFlow for collecting in @Composable screens. */
     val zodiacSignsState = _zodiacSigns.asStateFlow()
 
+    /** Current daily-open streak, persisted in DataStore. */
+    val streakDays: kotlinx.coroutines.flow.StateFlow<Int> =
+        settingsRepository.currentStreak.let { flow ->
+            kotlinx.coroutines.flow.MutableStateFlow(0).also { state ->
+                viewModelScope.launch { flow.collect { state.value = it } }
+            }.asStateFlow()
+        }
+
+    /**
+     * Mark today as visited. Idempotent within a calendar day. Increments the
+     * streak when called on a consecutive day, resets when a day is missed.
+     */
+    fun checkInToday() {
+        viewModelScope.launch {
+            settingsRepository.recordCheckIn()
+        }
+    }
+
     init {
         // Collect zodiac signs Flow with Resource wrapper
         viewModelScope.launch {

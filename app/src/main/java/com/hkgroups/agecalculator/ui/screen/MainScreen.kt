@@ -144,9 +144,16 @@ fun WelcomeScreen(onDateSelected: (Long) -> Unit) {
 @Composable
 fun CosmicDashboardScreen(viewModel: MainViewModel, navController: NavController) {
     val uiState by viewModel.uiState.collectAsState()
+    val streak by viewModel.streakDays.collectAsState()
     var liveAge by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
     val snackbarHostState = remember { SnackbarHostState() }
     var selectedNavIndex by remember { mutableStateOf(0) }
+
+    // Record today's visit exactly once per dashboard composition (per app session).
+    // The repository is idempotent within a calendar day.
+    LaunchedEffect(Unit) {
+        viewModel.checkInToday()
+    }
 
     // Show error message in snackbar
     LaunchedEffect(uiState.errorMessage) {
@@ -218,7 +225,8 @@ fun CosmicDashboardScreen(viewModel: MainViewModel, navController: NavController
                 // Daily engagement loop — streak, reveal, lucky cards, mood
                 DailyEngagementSection(
                     horoscope = uiState.horoscope,
-                    zodiacSign = uiState.zodiacSign
+                    zodiacSign = uiState.zodiacSign,
+                    streakDays = streak
                 )
 
                 Spacer(modifier = Modifier.height(32.dp))
@@ -868,7 +876,8 @@ private fun showDatePicker(context: Context, onDateSelected: (Long) -> Unit) {
 @Composable
 private fun DailyEngagementSection(
     horoscope: String?,
-    zodiacSign: ZodiacSign?
+    zodiacSign: ZodiacSign?,
+    streakDays: Int
 ) {
     val today = remember { LocalDate.now() }
     val signName = zodiacSign?.name ?: "Cosmic"
@@ -888,8 +897,7 @@ private fun DailyEngagementSection(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End
         ) {
-            // Static "1-day streak" until DataStore wiring lands.
-            StreakPill(days = 1)
+            StreakPill(days = streakDays)
         }
 
         Spacer(Modifier.height(14.dp))
