@@ -193,7 +193,8 @@ fun CompatibilityRowCard(
                 )
                 Spacer(Modifier.height(2.dp))
                 Text(
-                    text = info?.description?.take(80) ?: "Connection takes effort, but contrast can be magnetic.",
+                    text = info?.description?.take(80)
+                        ?: elementPairLine(userSign.element, partnerSign.element),
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.White.copy(alpha = 0.65f),
                     maxLines = 2
@@ -202,6 +203,28 @@ fun CompatibilityRowCard(
             Spacer(Modifier.width(10.dp))
             ScoreRing(percent = percent, accent = accent, size = 48.dp)
         }
+    }
+}
+
+/**
+ * One-line description based on element pairing — used when seed data has no
+ * explicit compatibility entry. Keeps every list row feeling distinct rather
+ * than repeating the same fallback for half the signs.
+ */
+private fun elementPairLine(yourElement: String, partnerElement: String): String {
+    val pair = setOf(yourElement, partnerElement)
+    return when {
+        pair == setOf("Fire") -> "Two fires — high energy, big plans, watch the burnout."
+        pair == setOf("Earth") -> "Twin pragmatism. Stable, dependable, occasionally too still."
+        pair == setOf("Air") -> "Endless conversation. Ideas spiral together easily."
+        pair == setOf("Water") -> "Emotional resonance. You read each other before words arrive."
+        pair == setOf("Fire", "Air") -> "Air feeds fire. Their ideas ignite your action."
+        pair == setOf("Earth", "Water") -> "Water nourishes earth. Soft meets stable."
+        pair == setOf("Fire", "Earth") -> "Earth grounds fire. Ambition becomes durable."
+        pair == setOf("Air", "Water") -> "Air over water — atmosphere together."
+        pair == setOf("Fire", "Water") -> "Steam dynamics. When in tune, electric."
+        pair == setOf("Earth", "Air") -> "Air lifts earth out of routine."
+        else -> "A meeting of distinct worlds. The contrast is the point."
     }
 }
 

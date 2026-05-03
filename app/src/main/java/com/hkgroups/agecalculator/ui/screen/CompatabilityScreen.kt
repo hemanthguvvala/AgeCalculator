@@ -86,7 +86,7 @@ fun CompatibilityDetailScreen(
     val ratingStars = ((rating10 + 1) / 2).coerceIn(0, 5) // 1-2→1★, 3-4→2★, 5-6→3★, 7-8→4★, 9-10→5★
     val percent = rating10 * 10
     val description = compatibilityInfo?.description
-        ?: "Your signs sit on different cosmic orbits. Connection takes effort, but the contrast can be magnetic when you both lean in."
+        ?: elementPairFallback(userSign?.element, partnerSign?.element)
     val accent = when {
         ratingStars >= 4 -> SaturnGold
         ratingStars >= 3 -> PrimaryNeon
@@ -254,6 +254,30 @@ fun CompatibilityDetailScreen(
                 }
             }
         }
+    }
+}
+
+/**
+ * Detail-screen fallback when seed data has no description. Element-aware
+ * paragraph form (vs. the one-liner used in the list).
+ */
+private fun elementPairFallback(yourElement: String?, partnerElement: String?): String {
+    if (yourElement == null || partnerElement == null) {
+        return "Your signs sit on different cosmic orbits. Connection takes effort, but the contrast can be magnetic when you both lean in."
+    }
+    val pair = setOf(yourElement, partnerElement)
+    return when {
+        pair == setOf("Fire") -> "Two fires create heat — and sometimes too much of it. The pace can be exhilarating when you're moving in the same direction, exhausting when you're not. Decide together who's leading each day."
+        pair == setOf("Earth") -> "Twin earth signs build something solid. Calendars sync, plans stick, and the future feels designed rather than improvised. Watch for inertia — schedule a deliberate disruption now and then."
+        pair == setOf("Air") -> "An idea factory. Conversations spiral into unexpected discoveries. The challenge is finishing what you start — pick one shared project and see it through together."
+        pair == setOf("Water") -> "Deep emotional resonance. You read each other before words arrive, which is beautiful and occasionally claustrophobic. Name what you feel out loud rather than expecting them to infer."
+        pair == setOf("Fire", "Air") -> "Air feeds fire. Their ideas spark your action, your action validates their thinking. Together you generate momentum others find contagious."
+        pair == setOf("Earth", "Water") -> "Water nourishes earth. They soften your structure; you give shape to their feelings. A pairing built for the long game."
+        pair == setOf("Fire", "Earth") -> "Earth grounds fire. Their stability turns your ambition into something durable. Don't let their pace frustrate you — it's where the work actually lands."
+        pair == setOf("Air", "Water") -> "Air over water creates atmosphere. Your conversations carry weather, your silences carry warmth. Beautiful when you let it move."
+        pair == setOf("Fire", "Water") -> "Steam dynamics. When you're in tune the heat is electric. When you're not, one of you boils and the other goes quiet. Slow the pace when emotions run hot."
+        pair == setOf("Earth", "Air") -> "Air lifts earth out of routine. They pull you into ideas; you keep them rooted. Schedule one shared ritual a week so the orbits stay close."
+        else -> "Your signs sit on different cosmic orbits. Connection takes effort, but the contrast can be magnetic when you both lean in."
     }
 }
 
