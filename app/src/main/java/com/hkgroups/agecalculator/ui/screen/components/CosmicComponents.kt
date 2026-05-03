@@ -1,6 +1,7 @@
 package com.hkgroups.agecalculator.ui.screen.components
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
@@ -10,6 +11,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -29,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
@@ -38,18 +41,33 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.hkgroups.agecalculator.ui.theme.BorderGlass
+import com.hkgroups.agecalculator.ui.theme.BorderGlassBottom
+import com.hkgroups.agecalculator.ui.theme.BorderGlassTop
+import com.hkgroups.agecalculator.ui.theme.GlassBase
+import com.hkgroups.agecalculator.ui.theme.GlassBaseTop
+import com.hkgroups.agecalculator.ui.theme.GlassRimLight
+import com.hkgroups.agecalculator.ui.theme.GlassSpecular
 import com.hkgroups.agecalculator.ui.theme.SurfaceGlass
+import com.hkgroups.agecalculator.ui.theme.SurfaceGlassBottom
+import com.hkgroups.agecalculator.ui.theme.SurfaceGlassMid
+import com.hkgroups.agecalculator.ui.theme.SurfaceGlassTop
 
 /**
- * GlassCard - A reusable glassmorphic card component with blur effect
- * Matches the CSS .glass-card aesthetic
- * 
- * @param modifier Custom modifier for positioning and sizing
- * @param shape Shape of the card (default: rounded corners)
- * @param blur Amount of blur to apply (only on Android 12+)
- * @param borderWidth Width of the glass border
- * @param content Composable content to display inside the card
+ * GlassCard — solid-base premium glass surface.
+ *
+ * The card body is fully opaque (GlassBase dark blue-purple) so empty
+ * regions never read as a hole. The "glass" feel comes from styling painted
+ * on top of the solid base:
+ *   1. Vertical gradient highlight in the top 30% (the "lit" zone)
+ *   2. Specular hotspot in the top-left, faking a directional light source
+ *   3. 1px inner top rim light — the bright pixel that makes it read as glass
+ *   4. Gradient border (brighter top, softer bottom)
+ *
+ * All decorative drawing is done with `drawWithCache` so brushes are
+ * allocated once per size change rather than per frame — massive perf win
+ * over the previous Canvas-stack approach.
  */
 @Composable
 fun GlassCard(
@@ -59,17 +77,64 @@ fun GlassCard(
     borderWidth: Dp = 1.dp,
     content: @Composable BoxScope.() -> Unit
 ) {
+    val surfaceBrush = remember {
+        Brush.verticalGradient(
+            colorStops = arrayOf(
+                0.0f to GlassBaseTop,
+                0.30f to GlassBase,
+                1.0f to GlassBase
+            )
+        )
+    }
+    val borderBrush = remember {
+        Brush.verticalGradient(
+            colors = listOf(BorderGlassTop, BorderGlassBottom)
+        )
+    }
+
     Box(
         modifier = modifier
-            .background(
-                color = SurfaceGlass,
-                shape = shape
-            )
-            .border(
-                width = borderWidth,
-                color = BorderGlass,
-                shape = shape
-            )
+            .clip(shape)
+            .background(surfaceBrush)
+            .drawWithCache {
+                val w = this.size.width
+                val h = this.size.height
+                val specCenter = androidx.compose.ui.geometry.Offset(w * 0.25f, h * 0.15f)
+                val specRadius = w.coerceAtMost(h * 1.4f) * 0.55f
+                val specularBrush = Brush.radialGradient(
+                    colors = listOf(GlassSpecular, Color.Transparent),
+                    center = specCenter,
+                    radius = specRadius
+                )
+                val rimBrush = Brush.horizontalGradient(
+                    colorStops = arrayOf(
+                        0.0f to Color.Transparent,
+                        0.18f to GlassRimLight,
+                        0.5f to GlassRimLight.copy(alpha = 0.55f),
+                        0.82f to GlassRimLight,
+                        1.0f to Color.Transparent
+                    )
+                )
+                val rimY = 1.dp.toPx()
+                val rimStartX = w * 0.06f
+                val rimEndX = w * 0.94f
+                val rimStrokePx = 1.dp.toPx()
+
+                onDrawBehind {
+                    drawCircle(
+                        brush = specularBrush,
+                        radius = specRadius,
+                        center = specCenter
+                    )
+                    drawLine(
+                        brush = rimBrush,
+                        start = androidx.compose.ui.geometry.Offset(rimStartX, rimY),
+                        end = androidx.compose.ui.geometry.Offset(rimEndX, rimY),
+                        strokeWidth = rimStrokePx
+                    )
+                }
+            }
+            .border(width = borderWidth, brush = borderBrush, shape = shape)
     ) {
         content()
     }
@@ -173,50 +238,62 @@ fun PlanetCard(
 ) {
     GlassCardWithGlow(
         modifier = modifier
-            .width(160.dp)
-            .height(200.dp),
+            .width(140.dp)
+            .height(180.dp),
         glowColor = planetColor,
-        glowAlpha = 0.2f,
+        glowAlpha = 0.18f,
         shape = RoundedCornerShape(24.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(20.dp),
+                .padding(horizontal = 16.dp, vertical = 18.dp),
             horizontalAlignment = Alignment.Start,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Planet icon/image at the top
             Box(
                 modifier = Modifier
-                    .size(48.dp)
+                    .size(40.dp)
                     .clip(CircleShape)
-                    .background(planetColor.copy(alpha = 0.2f)),
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                planetColor.copy(alpha = 0.4f),
+                                planetColor.copy(alpha = 0.08f)
+                            )
+                        )
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 planetImage()
             }
-            
-            Spacer(modifier = Modifier.weight(1f))
-            
-            // Planet info at the bottom
+
             Column {
                 Text(
-                    text = planetName.uppercase(),
+                    text = planetName,
                     style = MaterialTheme.typography.labelMedium,
-                    color = planetColor
+                    color = planetColor,
+                    letterSpacing = 1.5.sp,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = planetAge,
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = Color.White
-                )
-                Text(
-                    text = "Years",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.White.copy(alpha = 0.7f)
-                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        text = planetAge,
+                        style = MaterialTheme.typography.headlineMedium.copy(
+                            fontSize = 26.sp,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                        ),
+                        color = Color.White
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "yr",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.55f),
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+                }
             }
         }
     }
@@ -239,7 +316,7 @@ fun FloatingNavBar(
 ) {
     GlassCard(
         modifier = modifier
-            .height(72.dp)
+            .height(68.dp)
             .padding(horizontal = 16.dp),
         shape = CircleShape,
         blur = 0.dp
@@ -247,7 +324,7 @@ fun FloatingNavBar(
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 24.dp),
+                .padding(horizontal = 12.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -278,6 +355,7 @@ private fun NavBarItem(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val haptics = LocalHapticFeedback.current
+    val cosmicFeedback = com.hkgroups.agecalculator.util.LocalCosmicFeedback.current
     val primary = MaterialTheme.colorScheme.primary
 
     val pillColor by animateColorAsState(
@@ -286,42 +364,56 @@ private fun NavBarItem(
         label = "navPillColor"
     )
     val iconTint by animateColorAsState(
-        targetValue = if (isSelected) primary else Color.White.copy(alpha = 0.6f),
+        targetValue = if (isSelected) primary else Color.White.copy(alpha = 0.55f),
         animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
         label = "navIconTint"
     )
-    val iconScale by animateFloatAsState(
-        targetValue = if (isSelected) 1.12f else 1f,
+
+    // Selected pill expands to show the label inline; unselected stays as a dot.
+    val targetWidth = if (isSelected) 96.dp else 48.dp
+    val pillWidth by animateDpAsState(
+        targetValue = targetWidth,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessMediumLow
         ),
-        label = "navIconScale"
+        label = "navPillWidth"
     )
 
-    Box(
+    Row(
         modifier = Modifier
-            .size(56.dp)
+            .height(44.dp)
+            .width(pillWidth)
             .clip(CircleShape)
             .background(pillColor)
             .clickable(
                 interactionSource = interactionSource,
                 indication = ripple(bounded = true, color = primary),
                 onClick = {
-                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    cosmicFeedback?.fire(com.hkgroups.agecalculator.util.CosmicFeedback.Cue.Select)
+                        ?: haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     onClick()
                 }
             ),
-        contentAlignment = Alignment.Center
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
     ) {
         Icon(
             imageVector = icon,
             contentDescription = label,
             tint = iconTint,
-            modifier = Modifier
-                .size(28.dp)
-                .scale(iconScale)
+            modifier = Modifier.size(22.dp)
         )
+        if (isSelected) {
+            Spacer(Modifier.width(6.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = primary,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                fontSize = 13.sp
+            )
+        }
     }
 }
 

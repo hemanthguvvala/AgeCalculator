@@ -7,7 +7,7 @@
     <string name="welcome_button_text">Select Birth Date</string>
 
     <!-- History Screen -->
-    <string name="history_screen_title">Life History</string>
+    <string name="history_screen_title">Lifetime</string>
     <string name="history_no_events_found">No historical events found for this view.</string>
     <string name="history_back_button_description">Back</string>
 

@@ -14,5 +14,5 @@
 .cxx
 local.properties
 
-# Claude Code per-developer overrides
-.claude/settings.local.json
+# Claude Code per-developer overrides + hooks
+.claude/

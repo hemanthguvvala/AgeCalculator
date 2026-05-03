@@ -1,7 +1,13 @@
 package com.hkgroups.agecalculator.ui.screen.components
 
-import androidx.compose.animation.core.*
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -9,86 +15,158 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import com.hkgroups.agecalculator.ui.theme.LocalSignPalette
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 import kotlin.random.Random
 
 /**
- * A background component that displays twinkling stars using Canvas.
- * Creates a starry night effect with animated opacity for each star.
+ * Atmospheric cosmic background — gradient mesh + nebula glows + restrained stars.
+ *
+ * The previous version painted 100 random twinkling dots over a flat color,
+ * which read as a generic screensaver. This version layers:
+ *   1. A vertical gradient using the user's sign palette (deep top → black bottom)
+ *   2. Two slow-moving nebula glows that drift around the screen
+ *   3. A sparse, hand-curated star field (24 dots) that twinkle subtly
+ *
+ * The result has actual atmosphere — depth, color, and a sense of place tied
+ * to the user's identity instead of generic "dark sky".
  */
 @Composable
 fun StarryBackground(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
-    // Generate random star positions once and remember them
+    val palette = LocalSignPalette.current
+
+    // 18 stable stars (was 24) — fewer animated nodes = smoother frames. The
+    // background should feel atmospheric, not be the bottleneck.
     val stars = remember {
-        List(100) {
+        val rand = Random(42)
+        List(18) {
             Star(
-                x = Random.nextFloat(),
-                y = Random.nextFloat(),
-                size = Random.nextFloat() * 3f + 1f,
-                baseAlpha = Random.nextFloat() * 0.5f + 0.3f,
-                twinkleSpeed = Random.nextInt(1000, 3000),
-                delay = Random.nextInt(0, 2000)
+                x = rand.nextFloat(),
+                y = rand.nextFloat(),
+                size = rand.nextFloat() * 1.6f + 0.8f,
+                baseAlpha = rand.nextFloat() * 0.35f + 0.30f,
+                twinkleSpeed = rand.nextInt(2400, 4200),
+                delay = rand.nextInt(0, 2000)
             )
         }
     }
 
-    // Create infinite transition for twinkling effect
-    val infiniteTransition = rememberInfiniteTransition(label = "star_twinkle")
-    
-    // Create animations for each star
-    val starAlphas = stars.map { star ->
-        infiniteTransition.animateFloat(
-            initialValue = star.baseAlpha,
-            targetValue = star.baseAlpha + 0.5f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(
-                    durationMillis = star.twinkleSpeed,
-                    delayMillis = star.delay,
-                    easing = LinearEasing
-                ),
-                repeatMode = RepeatMode.Reverse
-            ),
-            label = "star_alpha_${star.hashCode()}"
+    val transition = rememberInfiniteTransition(label = "atmoBg")
+
+    // Single shared twinkle animation drives all stars via fixed phase offsets.
+    // Cuts 18 individual animateFloat instances down to 1 — frame-time win.
+    val twinkle by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 3200, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "starTwinkle"
+    )
+
+    // Nebula drift — circular orbits, very slow (~60s per loop), so the bg
+    // breathes without distracting from foreground content.
+    val driftA by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = (2f * PI).toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 60_000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "nebulaDriftA"
+    )
+    val driftB by transition.animateFloat(
+        initialValue = (PI / 2f).toFloat(),
+        targetValue = (PI / 2f + 2f * PI).toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 80_000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "nebulaDriftB"
+    )
+
+    // Base vertical gradient — sign-tinted top → deep space bottom.
+    val baseGradient = remember(palette) {
+        Brush.verticalGradient(
+            colors = listOf(
+                palette.background,
+                Color(0xFF02040A),
+                Color.Black
+            )
         )
     }
 
-    Box(modifier = modifier.fillMaxSize()) {
-        // Draw stars on canvas
+    Box(modifier = modifier
+        .fillMaxSize()
+        .background(baseGradient)
+    ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val canvasWidth = size.width
-            val canvasHeight = size.height
+            val w = size.width
+            val h = size.height
 
+            // Nebula glow A — primary-tinted, drifting in a slow ellipse near the top.
+            val ax = w * (0.5f + 0.20f * cos(driftA))
+            val ay = h * (0.22f + 0.06f * sin(driftA))
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        palette.primary.copy(alpha = 0.22f),
+                        palette.primary.copy(alpha = 0.06f),
+                        Color.Transparent
+                    ),
+                    center = Offset(ax, ay),
+                    radius = w * 0.7f
+                ),
+                radius = w * 0.7f,
+                center = Offset(ax, ay)
+            )
+
+            // Nebula glow B — secondary-tinted, drifting in a slow ellipse below center.
+            val bx = w * (0.5f + 0.18f * cos(driftB))
+            val by = h * (0.62f + 0.08f * sin(driftB))
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        palette.secondary.copy(alpha = 0.18f),
+                        palette.secondary.copy(alpha = 0.04f),
+                        Color.Transparent
+                    ),
+                    center = Offset(bx, by),
+                    radius = w * 0.6f
+                ),
+                radius = w * 0.6f,
+                center = Offset(bx, by)
+            )
+
+            // Sparse star field — single twinkle var phased per star index.
             stars.forEachIndexed { index, star ->
-                val alpha = starAlphas[index].value
-
+                val phase = (index * 0.137f) % 1f
+                val t = (twinkle + phase) % 1f
+                val swing = kotlin.math.abs(t - 0.5f) * 2f // 0..1..0
+                val alpha = (star.baseAlpha + (1f - swing) * 0.32f).coerceIn(0f, 1f)
                 drawCircle(
-                    color = Color.White.copy(alpha = alpha.coerceIn(0f, 1f)),
+                    color = Color.White.copy(alpha = alpha),
                     radius = star.size,
                     center = Offset(
-                        x = star.x * canvasWidth,
-                        y = star.y * canvasHeight
+                        x = star.x * w,
+                        y = star.y * h
                     )
                 )
             }
         }
 
-        // Render content on top of stars
         content()
     }
 }
 
-/**
- * Data class representing a single star's properties.
- * @param x Horizontal position (0-1, normalized)
- * @param y Vertical position (0-1, normalized)
- * @param size Radius of the star
- * @param baseAlpha Base opacity value
- * @param twinkleSpeed Duration of twinkle animation in milliseconds
- * @param delay Initial delay before animation starts
- */
 private data class Star(
     val x: Float,
     val y: Float,

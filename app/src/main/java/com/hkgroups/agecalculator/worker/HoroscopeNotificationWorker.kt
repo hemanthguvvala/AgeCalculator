@@ -25,6 +25,12 @@ class HoroscopeNotificationWorker @AssistedInject constructor(
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
+        // Honor the user's notification preference. Returning success (not failure)
+        // keeps the daily WorkManager schedule alive so re-enabling immediately works.
+        if (!settingsRepository.notificationsEnabled.first()) {
+            return Result.success()
+        }
+
         val notificationHelper = NotificationHelper(applicationContext)
         notificationHelper.createNotificationChannel()
 

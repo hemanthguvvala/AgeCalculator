@@ -37,6 +37,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -129,29 +130,40 @@ fun DailyRevealCard(
                         color = Color.White
                     )
                 } else {
+                    // Inviting hint instead of a blurred wall of text — the
+                    // previous blurred copy rendered as a dark void on glass.
                     Text(
-                        text = "The cosmos has prepared your reading. " +
-                            "Tap to align with today's energies and reveal your forecast.",
+                        text = "The cosmos has prepared today's reading just for you.",
                         style = MaterialTheme.typography.bodyLarge,
-                        color = Color.White.copy(alpha = 0.45f),
-                        modifier = Modifier.blur(8.dp)
+                        color = Color.White.copy(alpha = 0.78f)
                     )
                 }
             }
 
             if (!revealed) {
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(20.dp))
+                // Bright, contrast-rich CTA pill so the affordance is obvious.
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth(),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "✦  TAP TO REVEAL  ✦",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = SaturnGold,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Box(
+                        modifier = Modifier
+                            .background(
+                                color = SaturnGold.copy(alpha = 0.18f),
+                                shape = RoundedCornerShape(999.dp)
+                            )
+                            .padding(horizontal = 18.dp, vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = "✦  TAP TO REVEAL  ✦",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = SaturnGold,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }
@@ -705,12 +717,52 @@ fun CompatibilityResultHero(
     score: Int,
     modifier: Modifier = Modifier
 ) {
-    var displayScore by rememberSaveable(score) { mutableIntStateOf(0) }
+    // Cinematic reveal sequence:
+    //  - 0ms: orbs start ~120dp off-screen on opposite sides, faded
+    //  - 120ms: they slide toward center
+    //  - 480ms: connector pops in with a spring
+    //  - 600ms: score number tumbles up
+    //  - 1300ms: verdict label fades in
+    var stage by remember(score) { androidx.compose.runtime.mutableIntStateOf(0) }
     LaunchedEffect(score) {
-        val steps = 30
+        stage = 0
+        delay(120); stage = 1   // orbs slide in
+        delay(360); stage = 2   // connector + score
+        delay(700); stage = 3   // verdict
+    }
+
+    val orbOffset by androidx.compose.animation.core.animateDpAsState(
+        targetValue = if (stage >= 1) 0.dp else 80.dp,
+        animationSpec = androidx.compose.animation.core.spring(
+            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioLowBouncy,
+            stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
+        ),
+        label = "orbSlide"
+    )
+    val orbAlpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (stage >= 1) 1f else 0f,
+        animationSpec = tween(durationMillis = 360, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "orbAlpha"
+    )
+    val connectorScale by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (stage >= 2) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.spring(
+            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioLowBouncy,
+            stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
+        ),
+        label = "connectorScale"
+    )
+
+    var displayScore by rememberSaveable(score) { mutableIntStateOf(0) }
+    LaunchedEffect(score, stage) {
+        if (stage < 2) return@LaunchedEffect
+        val steps = 32
         repeat(steps) { i ->
-            displayScore = (score * (i + 1) / steps).coerceAtMost(score)
-            delay(30L)
+            val t = (i + 1) / steps.toFloat()
+            // Cubic ease-out so the number lands cinematically.
+            val eased = 1f - (1f - t) * (1f - t) * (1f - t)
+            displayScore = (score * eased).toInt().coerceAtMost(score)
+            delay(28L)
         }
         displayScore = score
     }
@@ -728,6 +780,14 @@ fun CompatibilityResultHero(
         else -> "Different Orbits"
     }
 
+    // Sparkle burst when the score lands.
+    val emitter = rememberParticleEmitter()
+    LaunchedEffect(stage) {
+        if (stage == 2) {
+            emitter.burst(0.5f, 0.5f, count = 28, colors = listOf(accent, Color.White), speed = 0.6f)
+        }
+    }
+
     GlassCardWithGlow(
         modifier = modifier.fillMaxWidth(),
         glowColor = accent,
@@ -735,37 +795,82 @@ fun CompatibilityResultHero(
         elevation = 32.dp,
         shape = RoundedCornerShape(28.dp)
     ) {
+        Box(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 28.dp, horizontal = 24.dp),
+                .padding(vertical = 32.dp, horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                ZodiacBubble(symbol = yourSymbol, label = yourSign, accent = accent)
-                Text(
-                    text = if (score >= 70) "💕" else if (score >= 40) "🌙" else "⚡",
-                    fontSize = 28.sp,
+                Box(
+                    modifier = Modifier.graphicsLayer {
+                        translationX = -orbOffset.toPx()
+                        alpha = orbAlpha
+                    }
+                ) {
+                    ZodiacBubble(symbol = yourSymbol, label = yourSign, accent = accent)
+                }
+                Box(
                     modifier = Modifier
-                        .padding(horizontal = 16.dp)
-                        .attentionPulse(maxScale = 1.08f, durationMillis = 1200)
-                )
-                ZodiacBubble(symbol = partnerSymbol, label = partnerSign, accent = accent)
+                        .padding(horizontal = 18.dp)
+                        .graphicsLayer {
+                            scaleX = connectorScale
+                            scaleY = connectorScale
+                        }
+                ) {
+                    Text(
+                        text = if (score >= 70) "💕" else if (score >= 40) "🌙" else "⚡",
+                        fontSize = 32.sp,
+                        modifier = Modifier.attentionPulse(maxScale = 1.10f, durationMillis = 1100)
+                    )
+                }
+                Box(
+                    modifier = Modifier.graphicsLayer {
+                        translationX = orbOffset.toPx()
+                        alpha = orbAlpha
+                    }
+                ) {
+                    ZodiacBubble(symbol = partnerSymbol, label = partnerSign, accent = accent)
+                }
             }
-            Spacer(Modifier.height(20.dp))
-            Text(
-                text = "$displayScore%",
-                fontSize = 64.sp,
-                fontWeight = FontWeight.Bold,
-                color = accent,
-                style = MaterialTheme.typography.displayLarge
-            )
-            Text(
-                text = verdict.uppercase(),
-                style = MaterialTheme.typography.labelLarge,
-                color = Color.White,
-                letterSpacing = 2.sp
-            )
+            Spacer(Modifier.height(24.dp))
+            Box(
+                modifier = Modifier.graphicsLayer {
+                    alpha = if (stage >= 2) 1f else 0f
+                }
+            ) {
+                Text(
+                    text = "$displayScore%",
+                    fontSize = 72.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = accent,
+                    style = MaterialTheme.typography.displayLarge
+                )
+            }
+            androidx.compose.animation.AnimatedVisibility(
+                visible = stage >= 3,
+                enter = androidx.compose.animation.fadeIn(animationSpec = tween(420)) +
+                    androidx.compose.animation.slideInVertically(
+                        initialOffsetY = { it / 3 },
+                        animationSpec = tween(420)
+                    )
+            ) {
+                Text(
+                    text = verdict.uppercase(),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = Color.White,
+                    letterSpacing = 2.5.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+        // Particle overlay sits on top of the hero so the score-reveal sparkle
+        // appears to explode out from the number.
+        ParticleField(
+            emitter = emitter,
+            modifier = Modifier.matchParentSize()
+        )
         }
     }
 }

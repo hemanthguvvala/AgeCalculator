@@ -18,6 +18,7 @@ object CosmicUtils {
     val planets = listOf(
         PlanetEnum("Mercury", 87.97, 0xFFB0B0B0),
         PlanetEnum("Venus", 224.70, 0xFFFFC649),
+        PlanetEnum("Earth", 365.25, 0xFF4DA8DA),
         PlanetEnum("Mars", 686.98, 0xFFE27B58),
         PlanetEnum("Jupiter", 4332.59, 0xFFD8A87B),
         PlanetEnum("Saturn", 10759.22, 0xFFFAD5A5),
@@ -35,13 +36,33 @@ object CosmicUtils {
             "Rat", "Ox", "Tiger", "Rabbit", "Dragon", "Snake",
             "Horse", "Goat", "Monkey", "Rooster", "Dog", "Pig"
         )
-        
-        // Chinese zodiac starts from 1900 being the year of Rat
-        // Calculate the index based on the year
-        val baseYear = 1900
-        val index = (year - baseYear) % 12
-        
+
+        // 1900 is the Year of the Rat. Use floorMod so years before 1900 map back
+        // through the 12-animal cycle correctly instead of throwing on a negative
+        // index. (Note: this is a Gregorian-Jan-1 approximation; the actual lunar
+        // year starts in late Jan / early Feb.)
+        val index = Math.floorMod(year - 1900, 12)
         return zodiacAnimals[index]
+    }
+
+    /**
+     * One-line description tailored to each Chinese zodiac sign. Used in place of the
+     * old hardcoded "Power, luck, and strength..." string that appeared for every sign.
+     */
+    fun getChineseZodiacDescription(zodiacName: String): String = when (zodiacName) {
+        "Rat" -> "Quick-witted, resourceful, and steady — small moves, big wins."
+        "Ox" -> "Patient, dependable, and quietly powerful when grounded."
+        "Tiger" -> "Bold and magnetic — a born leader when you trust the leap."
+        "Rabbit" -> "Gentle, intuitive, and graceful under pressure."
+        "Dragon" -> "Power, luck, and strength aligned with the stars."
+        "Snake" -> "Wise, perceptive, and a master of strategic patience."
+        "Horse" -> "Free-spirited, energetic, and happiest in motion."
+        "Goat" -> "Creative, kind, and the calm in someone else's storm."
+        "Monkey" -> "Clever, curious, and unstoppable when you're playing."
+        "Rooster" -> "Sharp, honest, and quietly proud of the work you do."
+        "Dog" -> "Loyal, fair, and the friend everyone secretly wants."
+        "Pig" -> "Generous, sincere, and the one who makes everyone feel home."
+        else -> "Aligned with the stars in your own quiet way."
     }
 
     /**
@@ -52,7 +73,10 @@ object CosmicUtils {
     fun calculatePlanetaryAges(earthAgeInDays: Long): List<Pair<String, String>> {
         return planets.map { planet ->
             val planetAge = earthAgeInDays / planet.orbitalPeriodInEarthDays
-            val formattedAge = String.format("%.1f", planetAge)
+            // Use 2 decimals for fast planets / young ages so e.g. a 6-month-old
+            // doesn't read "0.0" Mars years; 1 decimal is enough beyond ~1 orbit.
+            val pattern = if (planetAge < 10.0) "%.2f" else "%.1f"
+            val formattedAge = String.format(java.util.Locale.US, pattern, planetAge)
             Pair(planet.name, formattedAge)
         }
     }
@@ -142,7 +166,22 @@ object CosmicUtils {
             2025 to "Advanced AI assistants became mainstream"
         )
         
-        return triviaMap[year] ?: "A year filled with unique moments in history"
+        triviaMap[year]?.let { return it }
+
+        // Decade-based fallback for years outside the explicit map (pre-1950 / post-2025).
+        // Better than the old generic placeholder that used to leak into both the
+        // Time Capsule and Did-You-Know cards.
+        return when {
+            year < 1900 -> "Born in the $year — a world before electricity, radio, and powered flight."
+            year in 1900..1909 -> "The dawn of the 20th century — flight, radio, and the modern age were just being born."
+            year in 1910..1919 -> "An era reshaped by the First World War and a wave of revolutions across the globe."
+            year in 1920..1929 -> "The Roaring Twenties — jazz, cinema, and the first transatlantic flights."
+            year in 1930..1939 -> "Defined by the Great Depression and a rapid scramble of scientific discovery."
+            year in 1940..1949 -> "The Second World War, the dawn of the atomic age, and the first computers."
+            year in 2026..2029 -> "Born into the age of generative AI, lunar return missions, and reusable rockets."
+            year in 2030..2099 -> "The mid-21st century — a generation shaped by AI, climate action, and a return to deep space."
+            else -> "A year filled with unique moments in history."
+        }
     }
     
     /**
@@ -150,6 +189,32 @@ object CosmicUtils {
      * @param zodiacName The Chinese zodiac animal name
      * @return The corresponding emoji
      */
+    /**
+     * Returns a "Did you know?" cosmos fact, varied daily for a given seed (typically
+     * birth-day-of-year + today). Distinct from getBirthYearTrivia so the Time Capsule
+     * and Did-You-Know sections don't display identical text.
+     */
+    fun getCosmicDidYouKnow(seed: Int): String {
+        val facts = listOf(
+            "On Venus a single day (243 Earth days) is longer than its year (225 Earth days).",
+            "A teaspoon of neutron-star material would weigh about 6 billion tons on Earth.",
+            "There are more stars in the observable universe than grains of sand on every beach.",
+            "Saturn's density is so low it would float in a bathtub — if you found one big enough.",
+            "Light from the Sun takes about 8 minutes 20 seconds to reach Earth.",
+            "Jupiter's Great Red Spot is a storm that's been raging for at least 350 years.",
+            "Mercury's surface temperature swings by more than 600°C between day and night.",
+            "Olympus Mons on Mars is roughly three times the height of Mount Everest.",
+            "A year on Neptune is 165 Earth years — it has only completed one orbit since its discovery in 1846.",
+            "Earth picks up about 100 tonnes of cosmic dust every single day.",
+            "The Milky Way and Andromeda are on a collision course — but it's about 4 billion years out.",
+            "There's a planet, 55 Cancri e, theorised to be largely made of crystalline carbon — i.e. diamond.",
+            "Pluto's largest moon, Charon, is so big the two bodies orbit a point outside Pluto itself.",
+            "Black holes don't 'suck' — they have gravity like any other mass; you just can't escape past the event horizon.",
+            "Astronauts can grow up to 5 cm taller in microgravity as the spine decompresses."
+        )
+        return facts[Math.floorMod(seed, facts.size)]
+    }
+
     fun getChineseZodiacEmoji(zodiacName: String): String {
         return when (zodiacName) {
             "Rat" -> "🐀"

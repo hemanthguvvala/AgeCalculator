@@ -11,7 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.CircularProgressIndicator
@@ -24,10 +24,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.hkgroups.agecalculator.ui.screen.components.CosmicTopBar
 import com.hkgroups.agecalculator.ui.screen.components.EmptyState
 import com.hkgroups.agecalculator.ui.screen.components.StarryBackground
+import com.hkgroups.agecalculator.ui.screen.components.TimelineRow
 import com.hkgroups.agecalculator.ui.theme.BackgroundDark
 import com.hkgroups.agecalculator.ui.theme.PrimaryNeon
+import com.hkgroups.agecalculator.ui.theme.PurpleAccent
+import com.hkgroups.agecalculator.ui.theme.SaturnGold
 import com.hkgroups.agecalculator.ui.viewmodel.MainViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -50,38 +54,43 @@ fun BirthdayEventsScreen(
                     .fillMaxSize()
                     .statusBarsPadding()
             ) {
-                CosmicScreenTopBar(
-                    title = "On This Day In History",
+                CosmicTopBar(
+                    title = "Your day in history",
+                    subtitle = if (events.isNotEmpty()) "${events.size} stories share your birthday" else null,
                     onBack = { navController.popBackStack() }
                 )
 
                 when {
                     events.isEmpty() && uiState.selectedDate == null -> {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = PrimaryNeon)
+                            com.hkgroups.agecalculator.ui.screen.components.CosmicLoading()
                         }
                     }
                     events.isEmpty() -> {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            EmptyState(
-                                message = "No historical events found for this date.",
-                                icon = Icons.Default.Info
-                            )
-                        }
+                        com.hkgroups.agecalculator.ui.screen.components.CosmicEmptyState(
+                            title = "Quiet day in history",
+                            body = "No notable events found that share your birthday."
+                        )
                     }
                     else -> {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
                         ) {
-                            items(
+                            itemsIndexed(
                                 items = events,
-                                key = { it.date.toString() + it.title }
-                            ) { event ->
-                                EventCard(event = event)
+                                key = { _, e -> e.date.toString() + e.title }
+                            ) { index, event ->
+                                val dotColor = if (index % 2 == 0) SaturnGold else PurpleAccent
+                                TimelineRow(
+                                    isFirst = index == 0,
+                                    isLast = index == events.lastIndex,
+                                    dotColor = dotColor
+                                ) {
+                                    EventCard(event = event)
+                                }
                             }
-                            item { Spacer(Modifier.height(24.dp)) }
+                            item { Spacer(Modifier.height(96.dp)) }
                         }
                     }
                 }

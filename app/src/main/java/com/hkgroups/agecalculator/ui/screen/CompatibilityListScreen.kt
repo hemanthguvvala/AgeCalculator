@@ -1,7 +1,9 @@
 package com.hkgroups.agecalculator.ui.screen
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,13 +19,10 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
@@ -41,9 +40,13 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.hkgroups.agecalculator.data.model.ZodiacSign
+import com.hkgroups.agecalculator.ui.screen.components.CosmicTopBar
 import com.hkgroups.agecalculator.ui.screen.components.GlassCardWithGlow
+import com.hkgroups.agecalculator.ui.screen.components.ScoreRing
 import com.hkgroups.agecalculator.ui.screen.components.StarryBackground
 import com.hkgroups.agecalculator.ui.screen.components.pressableScale
+import com.hkgroups.agecalculator.ui.screen.components.staggeredEntrance
+import com.hkgroups.agecalculator.ui.screen.components.tiltable3D
 import com.hkgroups.agecalculator.ui.theme.BackgroundDark
 import com.hkgroups.agecalculator.ui.theme.PrimaryNeon
 import com.hkgroups.agecalculator.ui.theme.PurpleAccent
@@ -71,30 +74,11 @@ fun CompatibilityListScreen(
                     .fillMaxSize()
                     .statusBarsPadding()
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 8.dp)
-                ) {
-                    IconButton(
-                        onClick = { navController.popBackStack() },
-                        modifier = Modifier.align(Alignment.CenterStart)
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = Color.White
-                        )
-                    }
-                    Text(
-                        text = if (userSign != null)
-                            "${userSign.name} Compatibility"
-                        else "Compatibility",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = Color.White,
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
+                CosmicTopBar(
+                    title = if (userSign != null) "${userSign.name} matches" else "Compatibility",
+                    subtitle = if (userSign != null) "How you align with the other 11 signs" else null,
+                    onBack = { navController.popBackStack() }
+                )
 
                 when {
                     userSign == null -> EmptyCompatState(
@@ -111,10 +95,21 @@ fun CompatibilityListScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         val partners = allSigns.filter { it.name != userSign.name }
-                        items(partners) { partner ->
-                            CompatibilityRowCard(userSign = userSign, partnerSign = partner)
+                        itemsIndexed(partners) { index, partner ->
+                            CompatibilityRowCard(
+                                userSign = userSign,
+                                partnerSign = partner,
+                                indexHint = index,
+                                onClick = {
+                                    navController.navigate(
+                                        com.hkgroups.agecalculator.ui.navigation.Screen
+                                            .Compatibility
+                                            .createRoute(userSign.name, partner.name)
+                                    )
+                                }
+                            )
                         }
-                        item { Spacer(Modifier.height(24.dp)) }
+                        item { Spacer(Modifier.height(160.dp)) }
                     }
                 }
             }
@@ -148,58 +143,64 @@ private fun EmptyCompatState(title: String, message: String) {
 }
 
 @Composable
-fun CompatibilityRowCard(userSign: ZodiacSign, partnerSign: ZodiacSign) {
+fun CompatibilityRowCard(
+    userSign: ZodiacSign,
+    partnerSign: ZodiacSign,
+    indexHint: Int = 0,
+    onClick: () -> Unit = {}
+) {
     val info = userSign.compatibilities.find { it.signName == partnerSign.name }
-    val rating = info?.rating ?: 1
+    val rating10 = (info?.rating ?: 1).coerceIn(0, 10)
+    val percent = rating10 * 10
     val accent = when {
-        rating >= 4 -> SaturnGold
-        rating >= 3 -> PrimaryNeon
+        percent >= 75 -> SaturnGold
+        percent >= 55 -> PrimaryNeon
         else -> PurpleAccent
     }
-    val interactionSource = remember { MutableInteractionSource() }
+    val verdict = when {
+        percent >= 90 -> "Cosmic soulmates"
+        percent >= 75 -> "Strong alignment"
+        percent >= 55 -> "Worth exploring"
+        else -> "Different orbits"
+    }
 
     GlassCardWithGlow(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(
-                interactionSource = interactionSource,
-                indication = ripple(bounded = true, color = accent),
-                onClick = {}
-            )
-            .pressableScale(interactionSource),
+            .staggeredEntrance(indexHint = indexHint)
+            .tiltable3D(maxAngle = 5f, onTap = onClick),
         glowColor = accent,
-        glowAlpha = 0.4f,
+        glowAlpha = 0.35f,
         elevation = 16.dp,
-        shape = RoundedCornerShape(20.dp)
+        shape = RoundedCornerShape(22.dp)
     ) {
+        // Three-zone layout: glyph badge · partner identity · score ring.
+        // The ring replaces the star string — ratings now feel measured, not toy.
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .padding(horizontal = 14.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            ZodiacBadge(symbol = userSign.symbol, name = userSign.name, accent = accent)
-            Spacer(Modifier.width(12.dp))
-            Column(
-                modifier = Modifier.weight(1f),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
+            ZodiacBadge(symbol = partnerSign.symbol, name = partnerSign.name, accent = accent)
+            Spacer(Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "★".repeat(rating) + "☆".repeat((5 - rating).coerceAtLeast(0)),
-                    fontSize = 22.sp,
-                    color = SaturnGold
+                    text = verdict,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = Color.White,
+                    fontWeight = FontWeight.SemiBold
                 )
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(2.dp))
                 Text(
-                    text = info?.description?.take(80) ?: "Different orbits",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White.copy(alpha = 0.7f),
-                    maxLines = 2,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    text = info?.description?.take(80) ?: "Connection takes effort, but contrast can be magnetic.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White.copy(alpha = 0.65f),
+                    maxLines = 2
                 )
             }
-            Spacer(Modifier.width(12.dp))
-            ZodiacBadge(symbol = partnerSign.symbol, name = partnerSign.name, accent = accent)
+            Spacer(Modifier.width(10.dp))
+            ScoreRing(percent = percent, accent = accent, size = 48.dp)
         }
     }
 }
@@ -209,11 +210,22 @@ private fun ZodiacBadge(symbol: String, name: String, accent: Color) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             modifier = Modifier
+                .size(56.dp)
                 .clip(CircleShape)
-                .background(accent.copy(alpha = 0.2f))
-                .padding(horizontal = 10.dp, vertical = 6.dp)
+                .background(
+                    androidx.compose.ui.graphics.Brush.radialGradient(
+                        colors = listOf(accent.copy(alpha = 0.32f), Color.Transparent)
+                    )
+                )
+                .border(1.dp, accent.copy(alpha = 0.45f), CircleShape),
+            contentAlignment = Alignment.Center
         ) {
-            Text(text = symbol, fontSize = 26.sp, color = Color.White)
+            com.hkgroups.agecalculator.ui.screen.components.ZodiacGlyph(
+                sign = name,
+                strokeColor = Color.White,
+                accentColor = accent,
+                modifier = Modifier.size(32.dp)
+            )
         }
         Spacer(Modifier.height(4.dp))
         Text(

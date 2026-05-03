@@ -3,6 +3,9 @@
     <color name="purple_200">#FFBB86FC</color>
     <color name="purple_500">#FF6200EE</color>
     <color name="purple_700">#FF3700B3</color>
+    <!-- Cosmic deep space — matches BackgroundDark in Compose so the system
+         splash blends seamlessly into the in-app splash. -->
+    <color name="cosmic_deep_space">#FF050B14</color>
     <color name="teal_200">#FF03DAC5</color>
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>

@@ -19,12 +19,8 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
@@ -43,10 +39,14 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.hkgroups.agecalculator.data.model.ZodiacSign
 import com.hkgroups.agecalculator.ui.navigation.Screen
+import com.hkgroups.agecalculator.ui.screen.components.CosmicTopBar
 import com.hkgroups.agecalculator.ui.screen.components.GlassCard
 import com.hkgroups.agecalculator.ui.screen.components.GlassCardWithGlow
 import com.hkgroups.agecalculator.ui.screen.components.StarryBackground
 import com.hkgroups.agecalculator.ui.screen.components.pressableScale
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.graphics.Brush
 import com.hkgroups.agecalculator.ui.theme.BackgroundDark
 import com.hkgroups.agecalculator.ui.theme.PrimaryNeon
 import com.hkgroups.agecalculator.ui.theme.PurpleAccent
@@ -71,9 +71,9 @@ fun ZodiacExplorerScreen(
                     .fillMaxSize()
                     .statusBarsPadding()
             ) {
-                // Cosmic header
                 CosmicTopBar(
-                    title = "Explore The Zodiac",
+                    title = "Explore the zodiac",
+                    subtitle = if (signs.isNotEmpty()) "${signs.size} signs · tap to dive in" else "Aligning the cosmos…",
                     onBack = { navController.popBackStack() }
                 )
 
@@ -85,7 +85,7 @@ fun ZodiacExplorerScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            CircularProgressIndicator(color = PrimaryNeon)
+                            com.hkgroups.agecalculator.ui.screen.components.CosmicLoading()
                             Spacer(Modifier.height(12.dp))
                             Text(
                                 "Aligning the cosmos...",
@@ -95,50 +95,15 @@ fun ZodiacExplorerScreen(
                         }
                     }
                 } else {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(2),
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(
-                            start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(14.dp),
-                        horizontalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        items(signs) { sign ->
-                            ZodiacGridCard(sign = sign) {
-                                navController.navigate(Screen.ZodiacDetail.createRoute(sign.name))
-                            }
+                    com.hkgroups.agecalculator.ui.screen.components.ZodiacWheel(
+                        signs = signs,
+                        onSignClick = { sign ->
+                            navController.navigate(Screen.ZodiacDetail.createRoute(sign.name))
                         }
-                    }
+                    )
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun CosmicTopBar(title: String, onBack: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 8.dp)
-    ) {
-        IconButton(
-            onClick = onBack,
-            modifier = Modifier.align(Alignment.CenterStart)
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back",
-                tint = Color.White
-            )
-        }
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleLarge,
-            color = Color.White,
-            modifier = Modifier.align(Alignment.Center)
-        )
     }
 }
 
@@ -162,6 +127,21 @@ fun ZodiacGridCard(sign: ZodiacSign, onClick: () -> Unit) {
         elevation = 18.dp,
         shape = RoundedCornerShape(22.dp)
     ) {
+        // Subtle element-tinted radial wash so each card reads as its element
+        // (fire/water/earth/air) without yelling.
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(
+                            accent.copy(alpha = 0.14f),
+                            Color.Transparent
+                        ),
+                        radius = 320f
+                    )
+                )
+        )
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -169,16 +149,27 @@ fun ZodiacGridCard(sign: ZodiacSign, onClick: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            // Glyph disc with halo + thin element-colored border for richness.
             Box(
                 modifier = Modifier
+                    .size(80.dp)
                     .clip(CircleShape)
-                    .background(accent.copy(alpha = 0.18f))
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                accent.copy(alpha = 0.32f),
+                                Color.Transparent
+                            )
+                        )
+                    )
+                    .border(1.dp, accent.copy(alpha = 0.45f), CircleShape),
+                contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = sign.symbol,
-                    fontSize = 38.sp,
-                    color = Color.White
+                com.hkgroups.agecalculator.ui.screen.components.ZodiacGlyph(
+                    sign = sign.name,
+                    strokeColor = Color.White,
+                    accentColor = accent,
+                    modifier = Modifier.size(48.dp)
                 )
             }
             Spacer(Modifier.height(10.dp))
@@ -192,7 +183,9 @@ fun ZodiacGridCard(sign: ZodiacSign, onClick: () -> Unit) {
             Text(
                 text = sign.element.uppercase(),
                 style = MaterialTheme.typography.labelSmall,
-                color = accent
+                color = accent,
+                letterSpacing = 1.5.sp,
+                fontWeight = FontWeight.SemiBold
             )
             if (sign.dateRange.isNotBlank()) {
                 Spacer(Modifier.height(2.dp))

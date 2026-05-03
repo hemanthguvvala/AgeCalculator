@@ -58,3 +58,29 @@
 -dontwarn org.conscrypt.**
 -dontwarn org.bouncycastle.**
 -dontwarn org.openjsse.**
+
+# ---------- Facebook Audience Network ----------
+# FAN ships with consumer rules but we keep these as belt-and-braces so
+# release builds don't strip required reflection targets.
+-keep class com.facebook.ads.** { *; }
+-keep interface com.facebook.ads.** { *; }
+-keep class com.facebook.infer.annotation.** { *; }
+-dontwarn com.facebook.ads.**
+-dontwarn com.facebook.infer.annotation.**
+
+# ---------- Google Play Billing ----------
+# Billing client uses reflection on its callback proxies; without the keep
+# rule, release-mode obfuscation breaks the purchase flow silently.
+-keep class com.android.billingclient.** { *; }
+-dontwarn com.android.billingclient.**
+
+# ---------- Glance (home-screen widget) ----------
+# Glance's RemoteViews translation uses reflection on Composable functions.
+-keep class androidx.glance.** { *; }
+-dontwarn androidx.glance.**
+
+# ---------- App-internal: WorkManager + Hilt workers ----------
+-keep class com.hkgroups.agecalculator.worker.** { *; }
+-keep class com.hkgroups.agecalculator.widget.** { *; }
+-keep class com.hkgroups.agecalculator.util.FanAdsController { *; }
+-keep class com.hkgroups.agecalculator.util.BillingController { *; }

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed icon variant for Android 13+. The system tints this with the
+     user's wallpaper accent, so we only render solid silhouettes. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <path
+        android:pathData="M60,28
+            C61,40 63,46 70,52
+            C76,55 80,55 86,56
+            C80,57 76,57 70,60
+            C63,66 61,72 60,84
+            C59,72 57,66 50,60
+            C44,57 40,57 34,56
+            C40,55 44,55 50,52
+            C57,46 59,40 60,28 Z"
+        android:fillColor="#FFFFFFFF" />
+
+    <path
+        android:pathData="M36,40
+            C36.5,46 37.5,49 41,52
+            C44,53.5 45.5,53.5 48,54
+            C45.5,54.5 44,54.5 41,56
+            C37.5,59 36.5,62 36,68
+            C35.5,62 34.5,59 31,56
+            C28,54.5 26.5,54.5 24,54
+            C26.5,53.5 28,53.5 31,52
+            C34.5,49 35.5,46 36,40 Z"
+        android:fillColor="#FFFFFFFF" />
+
+    <path
+        android:pathData="M82,38 m-2,0 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0z"
+        android:fillColor="#FFFFFFFF" />
+
+</vector>

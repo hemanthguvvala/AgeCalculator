@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Subdirectory of the app cache that holds shared cosmic-card PNGs. -->
+    <cache-path
+        name="shared"
+        path="shared/" />
+</paths>

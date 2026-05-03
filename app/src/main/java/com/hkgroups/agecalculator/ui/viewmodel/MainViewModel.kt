@@ -94,6 +94,14 @@ class MainViewModel @Inject constructor(
             }.asStateFlow()
         }
 
+    /** Longest streak ever achieved, persisted in DataStore. */
+    val longestStreakDays: kotlinx.coroutines.flow.StateFlow<Int> =
+        settingsRepository.longestStreak.let { flow ->
+            kotlinx.coroutines.flow.MutableStateFlow(0).also { state ->
+                viewModelScope.launch { flow.collect { state.value = it } }
+            }.asStateFlow()
+        }
+
     /**
      * Mark today as visited. Idempotent within a calendar day. Increments the
      * streak when called on a consecutive day, resets when a day is missed.
@@ -105,29 +113,33 @@ class MainViewModel @Inject constructor(
     }
 
     init {
-        // Collect zodiac signs Flow with Resource wrapper
+        // Collect zodiac signs Flow with Resource wrapper. When the list finishes
+        // loading we re-run loadDate so the zodiac sign appears even if the birth-
+        // date flow fired before the DB was ready (race fixed).
         viewModelScope.launch {
             repository.getZodiacSigns().collect { resource ->
                 when (resource) {
                     is Resource.Loading -> {
-                        // Update loading state
                         _uiState.value = _uiState.value.copy(
                             isLoading = true,
                             errorMessage = null
                         )
-                        // Use cached data if available
                         resource.data?.let { _zodiacSigns.value = it }
                     }
                     is Resource.Success -> {
-                        // Data loaded successfully
                         _zodiacSigns.value = resource.data ?: emptyList()
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
                             errorMessage = null
                         )
+                        // Race fix: birth date may have already been collected before
+                        // signs arrived. If we have a saved date but no zodiacSign yet,
+                        // recompute now that the list is populated.
+                        if (_uiState.value.selectedDate != null && _uiState.value.zodiacSign == null) {
+                            settingsRepository.savedBirthDate.first()?.let { loadDate(it) }
+                        }
                     }
                     is Resource.Error -> {
-                        // Error occurred, but we might have cached data
                         resource.data?.let { _zodiacSigns.value = it }
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
@@ -142,10 +154,8 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch {
             settingsRepository.savedBirthDate.collect { savedDate ->
                 if (savedDate == null) {
-                    // No date saved, reset to welcome screen
                     resetUiState()
                 } else {
-                    // Date exists, load the data
                     loadDate(savedDate)
                 }
             }
@@ -246,12 +256,17 @@ class MainViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Emits Years/Months/Days breakdown for the given birth date. Re-emits only when
+     * the local calendar day changes — sleeping until the next local midnight rather
+     * than busy-looping every second. This avoids continuous recomposition of the
+     * dashboard for a value that, by definition, only changes daily.
+     */
     fun ageTicker(birthDate: LocalDate): kotlinx.coroutines.flow.Flow<List<Pair<String, String>>> =
         flow {
             while (true) {
                 val now = LocalDate.now()
                 val period = Period.between(birthDate, now)
-
                 emit(
                     listOf(
                         Pair("Years", period.years.toString()),
@@ -259,7 +274,11 @@ class MainViewModel @Inject constructor(
                         Pair("Days", period.days.toString())
                     )
                 )
-                delay(1000)
+                val nextMidnight = now.plusDays(1).atStartOfDay(ZoneId.systemDefault())
+                val nowZdt = java.time.ZonedDateTime.now(ZoneId.systemDefault())
+                val sleepMs = java.time.Duration.between(nowZdt, nextMidnight).toMillis()
+                    .coerceAtLeast(60_000L)
+                delay(sleepMs)
             }
         }
 
@@ -277,5 +296,35 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch {
             settingsRepository.setDarkMode(isDark)
         }
+    }
+
+    fun setNotificationsEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setNotificationsEnabled(enabled)
+        }
+    }
+
+    fun setHapticsEnabled(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setHapticsEnabled(enabled) }
+    }
+
+    fun setChimesEnabled(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setChimesEnabled(enabled) }
+    }
+
+    fun setCosmicEventNotificationsEnabled(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setCosmicEventNotificationsEnabled(enabled) }
+    }
+
+    fun setRisingSign(sign: String?) {
+        viewModelScope.launch { settingsRepository.setRisingSign(sign) }
+    }
+
+    fun setMoonSign(sign: String?) {
+        viewModelScope.launch { settingsRepository.setMoonSign(sign) }
+    }
+
+    fun saveMoodEntry(date: java.time.LocalDate, mood: String, note: String) {
+        viewModelScope.launch { settingsRepository.saveMoodEntry(date, mood, note) }
     }
 }

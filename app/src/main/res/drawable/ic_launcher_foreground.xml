@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Cosmic launcher foreground: a four-pointed sparkle (the brand mark used
+     on the welcome screen) with a smaller companion star. Sized to land
+     well inside the 72dp safe zone of an adaptive icon. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Big sparkle: 4-point star centered at (60, 56). Concave-curved
+         points make it feel star-like rather than diamond-like. -->
+    <path
+        android:pathData="M60,28
+            C61,40 63,46 70,52
+            C76,55 80,55 86,56
+            C80,57 76,57 70,60
+            C63,66 61,72 60,84
+            C59,72 57,66 50,60
+            C44,57 40,57 34,56
+            C40,55 44,55 50,52
+            C57,46 59,40 60,28 Z"
+        android:fillColor="#FFD58A">
+        <aapt:attr xmlns:aapt="http://schemas.android.com/aapt"
+            name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="40"
+                android:startY="28"
+                android:endX="80"
+                android:endY="84">
+                <item android:offset="0.0" android:color="#FFE7B96B" />
+                <item android:offset="0.6" android:color="#FFE0C097" />
+                <item android:offset="1.0" android:color="#FF8FB6FF" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Companion star — smaller, top-left of the big one. -->
+    <path
+        android:pathData="M36,40
+            C36.5,46 37.5,49 41,52
+            C44,53.5 45.5,53.5 48,54
+            C45.5,54.5 44,54.5 41,56
+            C37.5,59 36.5,62 36,68
+            C35.5,62 34.5,59 31,56
+            C28,54.5 26.5,54.5 24,54
+            C26.5,53.5 28,53.5 31,52
+            C34.5,49 35.5,46 36,40 Z"
+        android:fillColor="#EAEAFB" />
+
+    <!-- Tiny accent dot — adds a third spatial cue. -->
+    <path
+        android:pathData="M82,38 m-2,0 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0z"
+        android:fillColor="#FFE0C097" />
+
+</vector>

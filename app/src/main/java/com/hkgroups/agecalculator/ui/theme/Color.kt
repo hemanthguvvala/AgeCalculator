@@ -5,9 +5,25 @@ import androidx.compose.ui.graphics.Color
 
 // Deep Space Glassmorphism Palette
 val BackgroundDark = Color(0xFF050B14)      // Deep Space background
+val SurfaceDark = Color(0xFF0E1530)         // Slightly lifted surface for dialogs/sheets
 val PrimaryNeon = Color(0xFF4D96FF)         // Electric Blue
-val SurfaceGlass = Color(0xFFFFFFFF).copy(alpha = 0.08f)  // Glass surface (increased from 0.05f)
-val BorderGlass = Color(0xFFFFFFFF).copy(alpha = 0.15f)   // Glass border (increased from 0.1f)
+// Solid-base glass — cards are opaque dark blue-purple with the "glass" feel
+// coming from layered styling (gradient highlight + rim light + specular)
+// rather than transparency. This is how premium apps (iOS Control Center,
+// Linear, Notion) actually render glass — the surface is solid, the glass
+// affordances are painted on top. Result: tall cards never look like hollow
+// rectangles because no background ever bleeds through.
+val GlassBase = Color(0xFF161A2E)        // Solid card base
+val GlassBaseTop = Color(0xFF252B4A)     // Slightly lifted top for the gradient highlight
+val SurfaceGlassTop = GlassBaseTop
+val SurfaceGlassMid = GlassBase
+val SurfaceGlassBottom = GlassBase
+val SurfaceGlass = GlassBase
+val GlassRimLight = Color(0xFFFFFFFF).copy(alpha = 0.42f)
+val GlassSpecular = Color(0xFFFFFFFF).copy(alpha = 0.10f)
+val BorderGlassTop = Color(0xFFFFFFFF).copy(alpha = 0.22f)
+val BorderGlassBottom = Color(0xFFFFFFFF).copy(alpha = 0.04f)
+val BorderGlass = Color(0xFFFFFFFF).copy(alpha = 0.14f)
 
 // Planet-specific colors
 val MarsRed = Color(0xFFFF6B6B)

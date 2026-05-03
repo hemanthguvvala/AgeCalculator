@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.ZodiacAge" parent="Theme.SplashScreen">
-        <!-- Splash screen background color -->
-        <item name="windowSplashScreenBackground">@color/purple_700</item>
+        <!-- Splash screen background color — matches in-app cosmic background -->
+        <item name="windowSplashScreenBackground">@color/cosmic_deep_space</item>
         <!-- Splash screen icon (optional) -->
         <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
         <!-- Duration of splash screen animation in milliseconds -->
