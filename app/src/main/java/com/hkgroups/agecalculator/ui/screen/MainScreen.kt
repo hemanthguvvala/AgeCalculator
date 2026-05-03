@@ -321,8 +321,22 @@ private fun FeaturePeek(
 fun CosmicDashboardScreen(viewModel: MainViewModel, navController: NavController) {
     val uiState by viewModel.uiState.collectAsState()
     val streak by viewModel.streakDays.collectAsState()
+    val freezes by viewModel.streakFreezes.collectAsState()
+    val moodInsight by viewModel.moodInsight.collectAsState()
+    val questionOfTheDay by viewModel.questionOfTheDay.collectAsState()
+    val hasAnsweredToday by viewModel.hasAnsweredQuestionToday.collectAsState()
+    val birthdayWindowMessage by viewModel.birthdayWindowMessage.collectAsState()
+    val cosmicSnapshot by viewModel.cosmicSnapshot.collectAsState()
     var liveAge by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // Premium gating — drives both the weekly-forecast tease and the
+    // upsell-sheet trigger from any premium-only feature on this screen.
+    val billingController = com.hkgroups.agecalculator.util.LocalBillingController.current
+    val isPremium by (billingController?.isPremium
+        ?: kotlinx.coroutines.flow.MutableStateFlow(false)).collectAsState()
+    var showPremiumSheet by remember { mutableStateOf(false) }
+    val weeklyForecast by viewModel.weeklyForecast.collectAsState()
 
     // Mood journal state — collected here so the card and the sheet share state.
     val moodEntries by viewModel.settingsRepository.moodEntries
@@ -386,11 +400,16 @@ fun CosmicDashboardScreen(viewModel: MainViewModel, navController: NavController
                     .verticalScroll(scrollState)
                     .padding(bottom = 160.dp)
             ) {
-                // Header with title and avatar
+                // Header with title and avatar.
+                // We pass the user's birth date explicitly so the header can
+                // derive the sign name even before the Room-backed zodiac
+                // signs list finishes loading. This keeps the greeting from
+                // saying "Welcome back" for a beat after launch.
                 CosmicHeader(
                     navController = navController,
                     viewModel = viewModel,
                     zodiacSign = uiState.zodiacSign,
+                    selectedDate = uiState.selectedDate,
                     chineseZodiac = uiState.chineseZodiac
                 )
                 
@@ -433,14 +452,62 @@ fun CosmicDashboardScreen(viewModel: MainViewModel, navController: NavController
 
                 Spacer(modifier = Modifier.height(28.dp))
 
+                // Birthday window — fires only in the ±7-day solar return window.
+                // Highest-engagement annual moment; pinned above the daily loop.
+                birthdayWindowMessage?.let { msg ->
+                    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                        com.hkgroups.agecalculator.ui.screen.components.BirthdayBannerCard(
+                            message = msg
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(20.dp))
+                }
+
                 // Daily engagement loop — streak, reveal, lucky cards, mood
                 DailyEngagementSection(
                     horoscope = uiState.horoscope,
                     zodiacSign = uiState.zodiacSign,
-                    streakDays = streak
+                    streakDays = streak,
+                    streakFreezes = freezes
                 )
 
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Cosmic weather — today's sun-sign / moon / ruling planet
+                Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                    com.hkgroups.agecalculator.ui.screen.components.CosmicWeatherCard(
+                        snapshot = cosmicSnapshot
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Question of the day — short reflection prompt that doubles as
+                // engagement signal: an answered prompt is a stronger streak indicator
+                // than a pure app-open.
+                if (questionOfTheDay.isNotBlank()) {
+                    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                        com.hkgroups.agecalculator.ui.screen.components.QuestionOfDayCard(
+                            question = questionOfTheDay,
+                            hasAnswered = hasAnsweredToday,
+                            onSubmit = viewModel::answerQuestionOfTheDay
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(20.dp))
+                }
+
+                // Mood insight — appears once we have ≥ 5 mood entries and
+                // detect a day-of-week / planetary correlation.
+                moodInsight?.let { insight ->
+                    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                        com.hkgroups.agecalculator.ui.screen.components.MoodInsightCard(
+                            insight = insight
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(20.dp))
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
 
                 // Planetary System Section
                 if (uiState.planetaryAges.isNotEmpty()) {
@@ -515,6 +582,21 @@ fun CosmicDashboardScreen(viewModel: MainViewModel, navController: NavController
 
                 Spacer(modifier = Modifier.height(32.dp))
 
+                // 7-day forecast — premium-gated. Free users see the first day,
+                // the rest hide behind a "Unlock" CTA that opens the upsell sheet.
+                if (weeklyForecast.isNotEmpty()) {
+                    Column(modifier = Modifier.padding(horizontal = Space.md)) {
+                        SectionTitle("Week ahead")
+                        Spacer(Modifier.height(Space.sm))
+                        com.hkgroups.agecalculator.ui.screen.components.WeeklyForecastSection(
+                            forecast = weeklyForecast,
+                            isPremium = isPremium,
+                            onUpgradeTap = { showPremiumSheet = true }
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(32.dp))
+                }
+
                 // Sponsored — single in-feed native ad. Placed below the
                 // primary daily ritual content (mood, sky, events) so it never
                 // interrupts the core flow.
@@ -574,6 +656,14 @@ fun CosmicDashboardScreen(viewModel: MainViewModel, navController: NavController
             }
         )
     }
+
+    if (showPremiumSheet) {
+        com.hkgroups.agecalculator.ui.screen.components.PremiumUpsellSheet(
+            title = "Unlock the full week",
+            subtitle = "Premium reveals the rest of your 7-day forecast plus every other premium feature, lifetime.",
+            onDismiss = { showPremiumSheet = false }
+        )
+    }
 }
 
 @Composable
@@ -581,8 +671,16 @@ private fun CosmicHeader(
     navController: NavController,
     viewModel: MainViewModel,
     zodiacSign: ZodiacSign?,
+    selectedDate: LocalDate?,
     chineseZodiac: String?
 ) {
+    // Sign name fallback: when the Room signs list hasn't finished loading,
+    // we still know the user's sign from their birth date alone — no DB
+    // lookup needed. Prevents the "Welcome back" flash on launch.
+    val effectiveSignName = zodiacSign?.name
+        ?: selectedDate?.let {
+            com.hkgroups.agecalculator.content.AstronomyEngine.sunSignOfDay(it)
+        }
     val today = remember { LocalDate.now() }
     val greeting = remember(today) {
         val h = java.time.LocalTime.now().hour
@@ -614,7 +712,7 @@ private fun CosmicHeader(
             )
             Spacer(Modifier.height(2.dp))
             Text(
-                text = zodiacSign?.let { "${it.name}, you're glowing today." }
+                text = effectiveSignName?.let { "$it, you're glowing today." }
                     ?: "Welcome back",
                 style = MaterialTheme.typography.titleMedium,
                 color = Color.White,
@@ -673,7 +771,7 @@ private fun CosmicHeader(
                     contentAlignment = Alignment.Center
                 ) {
                     com.hkgroups.agecalculator.ui.screen.components.ZodiacGlyph(
-                        sign = zodiacSign?.name ?: "",
+                        sign = effectiveSignName ?: "",
                         strokeColor = Color.White,
                         accentColor = palette.primary,
                         modifier = Modifier.size(28.dp)
@@ -1362,7 +1460,8 @@ internal fun CosmicBirthDatePicker(
 private fun DailyEngagementSection(
     horoscope: String?,
     zodiacSign: ZodiacSign?,
-    streakDays: Int
+    streakDays: Int,
+    streakFreezes: Int = 0
 ) {
     val today = remember { LocalDate.now() }
     val signName = zodiacSign?.name ?: "Cosmic"
@@ -1379,7 +1478,10 @@ private fun DailyEngagementSection(
                 .padding(horizontal = 16.dp),
             horizontalArrangement = Arrangement.End
         ) {
-            StreakPill(days = streakDays)
+            com.hkgroups.agecalculator.ui.screen.components.StreakPillWithFreezes(
+                days = streakDays,
+                freezes = streakFreezes
+            )
         }
 
         Spacer(Modifier.height(14.dp))

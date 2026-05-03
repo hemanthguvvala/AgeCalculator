@@ -34,8 +34,8 @@ import com.hkgroups.agecalculator.ui.theme.Space
 
 /**
  * Privacy policy — bundled inline so it works offline and stays in the cosmic theme.
- * The previous version loaded a light-mode WebView from GitHub Pages which broke the
- * dark UI and required network.
+ * Avoids a WebView dependency so the screen renders correctly in dark mode and
+ * without network.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

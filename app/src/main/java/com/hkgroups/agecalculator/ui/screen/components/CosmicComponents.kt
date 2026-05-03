@@ -66,8 +66,7 @@ import com.hkgroups.agecalculator.ui.theme.SurfaceGlassTop
  *   4. Gradient border (brighter top, softer bottom)
  *
  * All decorative drawing is done with `drawWithCache` so brushes are
- * allocated once per size change rather than per frame — massive perf win
- * over the previous Canvas-stack approach.
+ * allocated once per size change rather than per frame.
  */
 @Composable
 fun GlassCard(
@@ -341,10 +340,10 @@ fun FloatingNavBar(
 }
 
 /**
- * NavBarItem - animated, haptic, ripple-aware nav item.
+ * NavBarItem — animated, haptic, ripple-aware nav item.
  * - Selection animates: pill background fades in/out and icon scales up subtly.
  * - Haptic tick on tap so the bar feels physical.
- * - Branded ripple replaces the previously-disabled feedback.
+ * - Branded ripple keyed off the user's sign palette.
  */
 @Composable
 private fun NavBarItem(

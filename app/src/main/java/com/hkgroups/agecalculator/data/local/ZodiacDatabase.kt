@@ -9,6 +9,7 @@ import androidx.room.TypeConverters
 import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
@@ -19,89 +20,64 @@ import kotlinx.coroutines.launch
 @Database(
     entities = [ZodiacSignEntity::class, HistoricalEventEntity::class],
     version = 1,
-    exportSchema = false
+    exportSchema = true
 )
 @TypeConverters(ZodiacTypeConverters::class, DateConverter::class)
 abstract class ZodiacDatabase : RoomDatabase() {
 
-    /**
-     * Provides access to the ZodiacDao for database operations.
-     */
     abstract fun zodiacDao(): ZodiacDao
 
     companion object {
-        /**
-         * Database name
-         */
         private const val DATABASE_NAME = "zodiac_database"
         private const val TAG = "ZodiacDatabase"
 
-        /**
-         * Singleton instance of the database.
-         * Volatile ensures that changes to INSTANCE are immediately visible to other threads.
-         */
         @Volatile
         private var INSTANCE: ZodiacDatabase? = null
 
-        /**
-         * Get the singleton database instance.
-         * Uses double-checked locking pattern for thread safety.
-         *
-         * @param context Application context
-         * @param useMigrations If true, use proper migrations; if false, use destructive migration (dev only)
-         * @return ZodiacDatabase instance
-         */
-        fun getInstance(context: Context, useMigrations: Boolean = false): ZodiacDatabase {
+        // Single seed scope so the seeding job is observable / cancellable, not
+        // a fire-and-forget anonymous scope.
+        private val seedScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        @Volatile
+        private var seedJob: Job? = null
+
+        fun getInstance(context: Context): ZodiacDatabase {
             return INSTANCE ?: synchronized(this) {
-                val builder = Room.databaseBuilder(
-                    context.applicationContext,
-                    ZodiacDatabase::class.java,
-                    DATABASE_NAME
-                )
-                
-                // Choose migration strategy based on environment
-                if (useMigrations) {
-                    // Production: Use proper migrations to preserve user data
-                    Log.d(TAG, "Using migration strategy with ${DatabaseMigrations.getAllMigrations().size} migrations")
-                    builder.addMigrations(*DatabaseMigrations.getAllMigrations())
-                } else {
-                    // Development: Use destructive migration for faster iteration
-                    Log.d(TAG, "Using destructive migration (development mode)")
-                    builder.fallbackToDestructiveMigration()
-                }
-                
-                val instance = builder
-                    .addCallback(object : Callback() {
-                        override fun onCreate(db: SupportSQLiteDatabase) {
-                            super.onCreate(db)
-                            Log.d(TAG, "Database created - starting initial data seeding")
+                INSTANCE ?: buildDatabase(context).also { INSTANCE = it }
+            }
+        }
 
-                            CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-                                try {
-                                    val dao = getInstance(context).zodiacDao()
+        private fun buildDatabase(context: Context): ZodiacDatabase {
+            val builder = Room.databaseBuilder(
+                context.applicationContext,
+                ZodiacDatabase::class.java,
+                DATABASE_NAME
+            )
+                .addMigrations(*DatabaseMigrations.getAllMigrations())
+                // Safety net: if a migration is missing (e.g. dev forgets to add
+                // one before bumping version), fall back to destructive migration
+                // *from version 1 only*. This protects existing v1 users from a
+                // hard crash on launch when v2+ ships without explicit migrations.
+                .fallbackToDestructiveMigrationFrom(false, 1)
+                .addCallback(object : Callback() {
+                    override fun onCreate(db: SupportSQLiteDatabase) {
+                        super.onCreate(db)
+                        seedJob = seedScope.launch { seedDatabase(context) }
+                    }
+                })
 
-                                    // Seed zodiac signs
-                                    Log.d(TAG, "Seeding zodiac signs...")
-                                    val zodiacSigns = InitialDataSource.getZodiacSigns()
-                                    dao.insertZodiacSigns(zodiacSigns.map { it.toEntity() })
-                                    Log.d(TAG, "Successfully seeded ${zodiacSigns.size} zodiac signs")
+            return builder.build()
+        }
 
-                                    // Seed historical events
-                                    Log.d(TAG, "Seeding historical events...")
-                                    val events = InitialDataSource.getHistoricalEvents()
-                                    dao.insertHistoricalEvents(events.map { it.toEntity() })
-                                    Log.d(TAG, "Successfully seeded ${events.size} historical events")
-
-                                    Log.d(TAG, "Database seeding completed successfully")
-                                } catch (e: Exception) {
-                                    Log.e(TAG, "Error seeding database", e)
-                                }
-                            }
-                        }
-                    })
-                    .build()
-                INSTANCE = instance
-                instance
+        private suspend fun seedDatabase(context: Context) {
+            try {
+                val dao = getInstance(context).zodiacDao()
+                val zodiacSigns = InitialDataSource.getZodiacSigns()
+                dao.insertZodiacSigns(zodiacSigns.map { it.toEntity() })
+                val events = InitialDataSource.getHistoricalEvents()
+                dao.insertHistoricalEvents(events.map { it.toEntity() })
+                Log.d(TAG, "Seeded ${zodiacSigns.size} signs, ${events.size} events")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error seeding database", e)
             }
         }
     }

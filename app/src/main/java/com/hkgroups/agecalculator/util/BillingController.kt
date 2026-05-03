@@ -20,22 +20,20 @@ import com.android.billingclient.api.queryProductDetails
 import com.android.billingclient.api.queryPurchasesAsync
 import com.hkgroups.agecalculator.data.repository.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.security.MessageDigest
+import java.util.UUID
 
 /**
  * BillingController — single owner of Google Play Billing state.
  *
- * Uses a one-time non-consumable purchase ("premium_lifetime") because:
- *  - Lifetime is simpler than subscription (no renewal handling)
- *  - Lower price + lifetime feels generous → better conversion for v1
- *  - Subscription tier can be added later as a second SKU without rewriting
- *
- * Ownership state is mirrored into [SettingsRepository.adsDisabled] so the
- * rest of the app doesn't need to know about Billing at all — they just read
- * the flag.
+ * Single non-consumable SKU "premium_lifetime"; ownership is mirrored into
+ * [SettingsRepository.adsDisabled] so the rest of the app reads a simple flag
+ * instead of talking to Billing directly.
  */
 class BillingController(
     private val context: Context,
@@ -98,9 +96,21 @@ class BillingController(
         })
     }
 
+    /** Stable obfuscated account ID — Play uses it to fingerprint replay
+     *  attempts. Derived from a per-install UUID, hashed so it can't leak PII. */
+    private val obfuscatedAccountId: String by lazy {
+        val installId = context.getSharedPreferences("billing", Context.MODE_PRIVATE)
+            .let { prefs ->
+                prefs.getString("install_id", null) ?: UUID.randomUUID().toString()
+                    .also { prefs.edit().putString("install_id", it).apply() }
+            }
+        val md = MessageDigest.getInstance("SHA-256").digest(installId.toByteArray())
+        md.take(32).joinToString("") { "%02x".format(it) }
+    }
+
     /** Fetch the price / title of the premium SKU from Play. */
     private fun queryProductDetails() {
-        scope.launch {
+        scope.launch(Dispatchers.IO) {
             val params = QueryProductDetailsParams.newBuilder()
                 .setProductList(
                     listOf(
@@ -124,7 +134,7 @@ class BillingController(
 
     /** Check if the user already owns the premium SKU. */
     fun queryOwnership() {
-        scope.launch {
+        scope.launch(Dispatchers.IO) {
             val params = QueryPurchasesParams.newBuilder()
                 .setProductType(BillingClient.ProductType.INAPP)
                 .build()
@@ -159,6 +169,8 @@ class BillingController(
                         .build()
                 )
             )
+            // obfuscatedAccountId helps Play fingerprint replay attempts.
+            .setObfuscatedAccountId(obfuscatedAccountId)
             .build()
         val result = billingClient.launchBillingFlow(activity, params)
         if (result.responseCode != BillingClient.BillingResponseCode.OK) {
@@ -185,7 +197,7 @@ class BillingController(
         val params = AcknowledgePurchaseParams.newBuilder()
             .setPurchaseToken(purchase.purchaseToken)
             .build()
-        scope.launch {
+        scope.launch(Dispatchers.IO) {
             val result = billingClient.acknowledgePurchase(params)
             Log.d(TAG, "Acknowledged: ${result.responseCode}")
         }

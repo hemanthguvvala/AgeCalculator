@@ -10,7 +10,6 @@ sealed class Screen(val route: String) {
 
     object History : Screen("history_screen")
 
-    // --- NEW ROUTES FOR THE EXPLORER FEATURE ---
     object ZodiacExplorer : Screen("zodiac_explorer_screen")
     object ZodiacDetail : Screen("zodiac_detail_screen/{signName}") {
         fun createRoute(signName: String) = "zodiac_detail_screen/$signName"

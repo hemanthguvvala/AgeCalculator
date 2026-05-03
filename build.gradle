@@ -1,16 +1,16 @@
 buildscript {
-    ext.kotlin_version = '2.1.21'  // Latest stable Kotlin matching your setup
+    ext.kotlin_version = '2.1.21'
     repositories {
         google()
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.11.1'                  // AGP version
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version" // Kotlin Gradle Plugin
-        classpath 'com.google.dagger:hilt-android-gradle-plugin:2.57'      // Hilt Plugin aligned with app dependencies
+        classpath 'com.android.tools.build:gradle:8.11.1'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        classpath 'com.google.dagger:hilt-android-gradle-plugin:2.57'
     }
 }
 
-task clean(type: Delete) {
-    delete rootProject.buildDir
+tasks.register('clean', Delete) {
+    delete layout.buildDirectory
 }

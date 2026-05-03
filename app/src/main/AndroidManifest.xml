@@ -5,7 +5,6 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Required by FAN SDK on Android 13+ to read the advertising ID. -->
     <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
@@ -16,8 +15,11 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.ZodiacAge"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/full_backup_content"
         android:name=".ZodiacAgeApp">
-        
+
         <!-- Disable default WorkManager initialization since we provide custom Configuration -->
         <provider
             android:name="androidx.startup.InitializationProvider"
@@ -29,15 +31,14 @@
                 android:value="androidx.startup"
                 tools:node="remove" />
         </provider>
-        
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:theme="@style/Theme.ZodiacAge"
-            android:screenOrientation="portrait">
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize|locale|uiMode">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>

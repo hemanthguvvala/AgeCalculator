@@ -45,10 +45,7 @@ object CosmicUtils {
         return zodiacAnimals[index]
     }
 
-    /**
-     * One-line description tailored to each Chinese zodiac sign. Used in place of the
-     * old hardcoded "Power, luck, and strength..." string that appeared for every sign.
-     */
+    /** One-line description tailored to each Chinese zodiac sign. */
     fun getChineseZodiacDescription(zodiacName: String): String = when (zodiacName) {
         "Rat" -> "Quick-witted, resourceful, and steady — small moves, big wins."
         "Ox" -> "Patient, dependable, and quietly powerful when grounded."
@@ -82,9 +79,8 @@ object CosmicUtils {
     }
 
     /**
-     * Returns an interesting trivia fact about a birth year.
-     * @param year The birth year (1950-2025)
-     * @return A trivia fact about that year
+     * Returns an interesting trivia fact about a birth year. Years 1950-2025 hit
+     * the explicit map; everything else falls through to a decade-bucket fallback.
      */
     fun getBirthYearTrivia(year: Int): String {
         val triviaMap = mapOf(
@@ -169,8 +165,6 @@ object CosmicUtils {
         triviaMap[year]?.let { return it }
 
         // Decade-based fallback for years outside the explicit map (pre-1950 / post-2025).
-        // Better than the old generic placeholder that used to leak into both the
-        // Time Capsule and Did-You-Know cards.
         return when {
             year < 1900 -> "Born in the $year — a world before electricity, radio, and powered flight."
             year in 1900..1909 -> "The dawn of the 20th century — flight, radio, and the modern age were just being born."
@@ -184,11 +178,6 @@ object CosmicUtils {
         }
     }
     
-    /**
-     * Get Chinese Zodiac emoji based on animal name.
-     * @param zodiacName The Chinese zodiac animal name
-     * @return The corresponding emoji
-     */
     /**
      * Returns a "Did you know?" cosmos fact, varied daily for a given seed (typically
      * birth-day-of-year + today). Distinct from getBirthYearTrivia so the Time Capsule
@@ -215,6 +204,7 @@ object CosmicUtils {
         return facts[Math.floorMod(seed, facts.size)]
     }
 
+    /** Emoji glyph for the given Chinese zodiac animal. */
     fun getChineseZodiacEmoji(zodiacName: String): String {
         return when (zodiacName) {
             "Rat" -> "🐀"

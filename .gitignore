@@ -1,18 +1,29 @@
+# Build artifacts
 *.iml
 .gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
 /build
 /captures
 .externalNativeBuild
 .cxx
+**/build/
+
+# Local config (per-developer; never commit)
+/local.properties
 local.properties
+keystore.properties
+*.jks
+*.keystore
+
+# IDE — IntelliJ / Android Studio
+/.idea/
+
+# OS
+.DS_Store
+Thumbs.db
 
 # Claude Code per-developer overrides + hooks
 .claude/
+
+# Stray top-level guides (kept locally, not tracked)
+/FONT_SETUP_GUIDE.kt
+/NAVIGATION_INTEGRATION_GUIDE.kt

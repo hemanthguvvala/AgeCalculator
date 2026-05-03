@@ -22,19 +22,22 @@
 
 # ========== Zodiac Age App ProGuard Rules ==========
 
-# Keep all data model classes to prevent Gson serialization issues
+# Strip debug logs from release — leaks PII and bloats binary
+-assumenosideeffects class android.util.Log {
+    public static *** d(...);
+    public static *** v(...);
+    public static *** i(...);
+}
+
+# Keep data model classes (Gson is used for content-pack JSON parsing)
 -keep class com.hkgroups.agecalculator.data.model.** { *; }
 -keepclassmembers class com.hkgroups.agecalculator.data.model.** { *; }
-
-# Keep all DTO classes for Retrofit/Gson serialization
--keep class com.hkgroups.agecalculator.data.remote.** { *; }
--keepclassmembers class com.hkgroups.agecalculator.data.remote.** { *; }
 
 # Keep Room database entities
 -keep class com.hkgroups.agecalculator.data.local.** { *; }
 -keepclassmembers class com.hkgroups.agecalculator.data.local.** { *; }
 
-# Gson specific rules
+# Gson — used only for content-pack JSON parsing
 -keepattributes Signature
 -keepattributes *Annotation*
 -dontwarn sun.misc.**
@@ -42,22 +45,6 @@
 -keep class * implements com.google.gson.TypeAdapterFactory
 -keep class * implements com.google.gson.JsonSerializer
 -keep class * implements com.google.gson.JsonDeserializer
-
-# Retrofit specific rules
--keepattributes RuntimeVisibleAnnotations
--keepattributes RuntimeInvisibleAnnotations
--keepattributes RuntimeVisibleParameterAnnotations
--keepattributes RuntimeInvisibleParameterAnnotations
-
--keepclassmembers,allowshrinking,allowobfuscation interface * {
-    @retrofit2.http.* <methods>;
-}
-
-# OkHttp platform used only on JVM and when Conscrypt dependency is available.
--dontwarn okhttp3.internal.platform.**
--dontwarn org.conscrypt.**
--dontwarn org.bouncycastle.**
--dontwarn org.openjsse.**
 
 # ---------- Facebook Audience Network ----------
 # FAN ships with consumer rules but we keep these as belt-and-braces so
@@ -78,6 +65,10 @@
 # Glance's RemoteViews translation uses reflection on Composable functions.
 -keep class androidx.glance.** { *; }
 -dontwarn androidx.glance.**
+
+# ---------- Google UMP (User Messaging Platform / GDPR consent) ----------
+-keep class com.google.android.ump.** { *; }
+-dontwarn com.google.android.ump.**
 
 # ---------- App-internal: WorkManager + Hilt workers ----------
 -keep class com.hkgroups.agecalculator.worker.** { *; }

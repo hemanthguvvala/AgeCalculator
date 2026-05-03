@@ -24,16 +24,10 @@ import kotlin.math.sin
 import kotlin.random.Random
 
 /**
- * Atmospheric cosmic background — gradient mesh + nebula glows + restrained stars.
- *
- * The previous version painted 100 random twinkling dots over a flat color,
- * which read as a generic screensaver. This version layers:
+ * Atmospheric cosmic background — three layered passes:
  *   1. A vertical gradient using the user's sign palette (deep top → black bottom)
  *   2. Two slow-moving nebula glows that drift around the screen
- *   3. A sparse, hand-curated star field (24 dots) that twinkle subtly
- *
- * The result has actual atmosphere — depth, color, and a sense of place tied
- * to the user's identity instead of generic "dark sky".
+ *   3. A sparse, twinkling star field tied to the user's sign palette
  */
 @Composable
 fun StarryBackground(
@@ -42,8 +36,8 @@ fun StarryBackground(
 ) {
     val palette = LocalSignPalette.current
 
-    // 18 stable stars (was 24) — fewer animated nodes = smoother frames. The
-    // background should feel atmospheric, not be the bottleneck.
+    // 18 stars — atmospheric, but few enough that the background never becomes
+    // the frame-rate bottleneck.
     val stars = remember {
         val rand = Random(42)
         List(18) {

@@ -6,7 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
-import androidx.datastore.preferences.core.longPreferencesKey // Import longPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -18,7 +18,7 @@ import javax.inject.Singleton
 
 // Define keys for our preferences
 private val IS_DARK_MODE = booleanPreferencesKey("is_dark_mode")
-private val SAVED_BIRTH_DATE = longPreferencesKey("saved_birth_date") // New key
+private val SAVED_BIRTH_DATE = longPreferencesKey("saved_birth_date")
 private val NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
 private val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
 // Saved partners: encoded as "Name|Sign;Name|Sign;..." in a single string pref
@@ -29,6 +29,12 @@ private val SAVED_PARTNERS = stringPreferencesKey("saved_partners")
 private val STREAK_CURRENT = intPreferencesKey("streak_current")
 private val STREAK_LONGEST = intPreferencesKey("streak_longest")
 private val STREAK_LAST_CHECK_IN = stringPreferencesKey("streak_last_check_in")
+// Streak freezes — Duolingo-style "missed-day forgiveness". User earns one
+// freeze per 7-day streak; consumed automatically when a day is missed.
+private val STREAK_FREEZES = intPreferencesKey("streak_freezes")
+// Question-of-day journaling: user's answer for today's reflection prompt.
+private val QOD_LAST_ANSWERED = stringPreferencesKey("qod_last_answered")
+private val QOD_LAST_ANSWER = stringPreferencesKey("qod_last_answer")
 
 // Micro-interaction preferences
 private val HAPTICS_ENABLED = booleanPreferencesKey("haptics_enabled")
@@ -66,20 +72,19 @@ class SettingsRepository @Inject constructor(@ApplicationContext private val con
         }
     }
 
-    // --- NEW: Flow to read the saved birth date ---
+    /** User's saved birth date, in millis since epoch. Null until onboarding completes. */
     val savedBirthDate: Flow<Long?> = context.dataStore.data
         .map { preferences ->
             preferences[SAVED_BIRTH_DATE]
         }
 
-    // --- NEW: Function to save the birth date ---
     suspend fun saveBirthDate(dateInMillis: Long) {
         context.dataStore.edit { settings ->
             settings[SAVED_BIRTH_DATE] = dateInMillis
         }
     }
 
-    // --- NEW: Function to clear the birth date (reset data) ---
+    /** Clears the saved birth date — used by Settings → Reset. */
     suspend fun clearBirthDate() {
         context.dataStore.edit { settings ->
             settings.remove(SAVED_BIRTH_DATE)
@@ -147,6 +152,10 @@ class SettingsRepository @Inject constructor(@ApplicationContext private val con
 
     /** Longest streak ever achieved. */
     val longestStreak: Flow<Int> = context.dataStore.data.map { it[STREAK_LONGEST] ?: 0 }
+
+    /** Available streak freezes — used automatically on a missed day before
+     *  the streak resets. Earned at every 7-day streak milestone. */
+    val streakFreezes: Flow<Int> = context.dataStore.data.map { it[STREAK_FREEZES] ?: 0 }
 
     // ---------- Micro-interactions (haptics / chimes) ----------
 
@@ -228,30 +237,73 @@ class SettingsRepository @Inject constructor(@ApplicationContext private val con
     }
 
     /**
-     * Record a check-in for today.
-     * - First ever check-in -> streak = 1
-     * - Same day -> no-op (streak unchanged)
-     * - Consecutive day -> streak + 1
-     * - Missed day -> streak resets to 1
-     * Always updates longest streak when current exceeds it.
+     * Record a check-in for today. Idempotent within a calendar day.
+     *
+     * Streak rules:
+     * - First-ever check-in: streak = 1
+     * - Same day: no-op
+     * - Consecutive day: streak + 1; +1 freeze every 7 (max 3 stored)
+     * - Missed exactly one day with freezes available: consume a freeze, keep streak
+     * - Otherwise: streak resets to 1
+     * - Clock-skew protection: if `lastIso` is in the future relative to `today`
+     *   (DST, timezone shift, manual clock change), preserve the streak.
      */
     suspend fun recordCheckIn(today: LocalDate = LocalDate.now()) {
         context.dataStore.edit { prefs ->
             val lastIso = prefs[STREAK_LAST_CHECK_IN]
             val current = prefs[STREAK_CURRENT] ?: 0
             val longest = prefs[STREAK_LONGEST] ?: 0
+            val freezes = prefs[STREAK_FREEZES] ?: 0
             val todayIso = today.toString()
 
-            val newCurrent = when {
-                lastIso == null -> 1
-                lastIso == todayIso -> current.coerceAtLeast(1)
-                lastIso == today.minusDays(1).toString() -> current + 1
-                else -> 1
+            val (newCurrent, newFreezes) = when {
+                lastIso == null -> 1 to freezes
+                lastIso == todayIso -> current.coerceAtLeast(1) to freezes
+                else -> {
+                    val lastDate = runCatching { LocalDate.parse(lastIso) }.getOrNull()
+                    val daysGap = if (lastDate != null) {
+                        java.time.temporal.ChronoUnit.DAYS.between(lastDate, today)
+                    } else Long.MAX_VALUE
+
+                    when {
+                        // Clock skew (lastIso is in the future) — preserve streak silently
+                        daysGap < 0 -> current.coerceAtLeast(1) to freezes
+                        daysGap == 1L -> {
+                            val newStreak = current + 1
+                            // Earn a freeze every 7-day milestone (max 3 stored)
+                            val earned = if (newStreak % 7 == 0) (freezes + 1).coerceAtMost(3) else freezes
+                            newStreak to earned
+                        }
+                        // Missed exactly one day, freeze available — burn it, keep streak
+                        daysGap == 2L && freezes > 0 -> current to (freezes - 1)
+                        else -> 1 to freezes
+                    }
+                }
             }
 
             prefs[STREAK_CURRENT] = newCurrent
+            prefs[STREAK_FREEZES] = newFreezes
             prefs[STREAK_LAST_CHECK_IN] = todayIso
             if (newCurrent > longest) prefs[STREAK_LONGEST] = newCurrent
+        }
+    }
+
+    // ---------- Question of the day ----------
+
+    /** ISO date of the day the user last answered the QOD prompt. */
+    val questionAnsweredDate: Flow<LocalDate?> = context.dataStore.data.map { prefs ->
+        prefs[QOD_LAST_ANSWERED]?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+    }
+
+    /** Last QOD answer text (for showing in-line in journal views). */
+    val lastQuestionAnswer: Flow<String?> = context.dataStore.data.map {
+        it[QOD_LAST_ANSWER]?.takeIf { v -> v.isNotBlank() }
+    }
+
+    suspend fun saveQuestionAnswer(date: LocalDate, answer: String) {
+        context.dataStore.edit { prefs ->
+            prefs[QOD_LAST_ANSWERED] = date.toString()
+            prefs[QOD_LAST_ANSWER] = answer.take(500)
         }
     }
 }

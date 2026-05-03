@@ -2,11 +2,14 @@ package com.hkgroups.agecalculator.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.hkgroups.agecalculator.content.AstronomyEngine
+import com.hkgroups.agecalculator.content.ContentEngine
+import com.hkgroups.agecalculator.util.MidnightTicker
 import com.hkgroups.agecalculator.data.model.HistoricalEvent
 import com.hkgroups.agecalculator.data.model.ZodiacSign
 import com.hkgroups.agecalculator.data.repository.SettingsRepository
 import com.hkgroups.agecalculator.data.repository.ZodiacRepository
-import com.hkgroups.agecalculator.domain.usecase.CalculateAgeUseCase // Import the new Use Case
+import com.hkgroups.agecalculator.domain.usecase.CalculateAgeUseCase
 import com.hkgroups.agecalculator.domain.usecase.FindBirthdayEventsUseCase
 import com.hkgroups.agecalculator.domain.usecase.FindZodiacSignUseCase
 import com.hkgroups.agecalculator.domain.usecase.TimeCalculationUseCase
@@ -18,9 +21,14 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toPersistentList
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
@@ -49,16 +57,15 @@ data class AgeData(
 
 data class UiState(
     val selectedDate: LocalDate? = null,
-    val ageData: AgeData? = null, // Changed from String to AgeData (contains Period)
+    val ageData: AgeData? = null,
     val zodiacSign: ZodiacSign? = null,
-    val daysUntilBirthday: Int? = null, // Changed from String to Int
+    val daysUntilBirthday: Int? = null,
     val dailyTip: String? = null,
-    val milestoneData: MilestoneData? = null, // Changed from String to MilestoneData
+    val milestoneData: MilestoneData? = null,
     val selectedCompatibilitySign: ZodiacSign? = null,
     val horoscope: String? = null,
     val historicalEvents: PersistentList<HistoricalEvent> = persistentListOf(),
     val birthdayEvents: PersistentList<HistoricalEvent> = persistentListOf(),
-    // New cosmic features
     val chineseZodiac: String? = null,
     val planetaryAges: List<Pair<String, String>> = emptyList(),
     val birthYearTrivia: String? = null,
@@ -87,30 +94,100 @@ class MainViewModel @Inject constructor(
     val zodiacSignsState = _zodiacSigns.asStateFlow()
 
     /** Current daily-open streak, persisted in DataStore. */
-    val streakDays: kotlinx.coroutines.flow.StateFlow<Int> =
-        settingsRepository.currentStreak.let { flow ->
-            kotlinx.coroutines.flow.MutableStateFlow(0).also { state ->
-                viewModelScope.launch { flow.collect { state.value = it } }
-            }.asStateFlow()
-        }
+    val streakDays: StateFlow<Int> = settingsRepository.currentStreak
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
-    /** Longest streak ever achieved, persisted in DataStore. */
-    val longestStreakDays: kotlinx.coroutines.flow.StateFlow<Int> =
-        settingsRepository.longestStreak.let { flow ->
-            kotlinx.coroutines.flow.MutableStateFlow(0).also { state ->
-                viewModelScope.launch { flow.collect { state.value = it } }
-            }.asStateFlow()
+    /** Longest streak ever achieved. */
+    val longestStreakDays: StateFlow<Int> = settingsRepository.longestStreak
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
+    /** Available streak freezes — earned at every 7-day milestone. */
+    val streakFreezes: StateFlow<Int> = settingsRepository.streakFreezes
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
+    /** Mood-pattern insight (null when not enough data). Recomputes when mood log changes. */
+    val moodInsight: StateFlow<String?> = settingsRepository.moodEntries
+        .map { ContentEngine.moodInsight(it) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    // Midnight-aware "today" — re-emits whenever the local day rolls over,
+    // so all date-derived content stays fresh when the app is left open.
+    private val todayFlow = MidnightTicker.flow()
+
+    /** Today's question of the day for the user's sign. Empty until birth date is set. */
+    val questionOfTheDay: StateFlow<String> = combine(
+        settingsRepository.savedBirthDate,
+        todayFlow
+    ) { millis, today ->
+        millis?.let {
+            val birth = Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate()
+            val sign = AstronomyEngine.sunSignOfDay(birth)
+            ContentEngine.questionOfTheDay(sign, today)
+        } ?: ""
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
+
+    /** Has the user answered today's QOD? */
+    val hasAnsweredQuestionToday: StateFlow<Boolean> = combine(
+        settingsRepository.questionAnsweredDate,
+        todayFlow
+    ) { answered, today ->
+        answered == today
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    /** Birthday-window message (null outside the ±7 day window). */
+    val birthdayWindowMessage: StateFlow<String?> = combine(
+        settingsRepository.savedBirthDate,
+        todayFlow
+    ) { millis, today ->
+        millis?.let {
+            val birth = Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate()
+            val sign = AstronomyEngine.sunSignOfDay(birth)
+            ContentEngine.birthdayWindowMessage(sign, birth, today)
         }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Today's cosmic snapshot — drives "what's in the air" content blocks.
+     *  Re-emits at local midnight so the dashboard stays fresh across day rollover. */
+    val cosmicSnapshot: StateFlow<AstronomyEngine.CosmicSnapshot> = todayFlow
+        .map { AstronomyEngine.snapshot(it) }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            AstronomyEngine.snapshot(LocalDate.now())
+        )
 
     /**
-     * Mark today as visited. Idempotent within a calendar day. Increments the
-     * streak when called on a consecutive day, resets when a day is missed.
+     * Mark today as visited. Idempotent within a calendar day. Streak increments,
+     * freezes consume on a missed day before reset.
      */
     fun checkInToday() {
+        viewModelScope.launch { settingsRepository.recordCheckIn() }
+    }
+
+    /** Persist the user's answer to today's question of the day. */
+    fun answerQuestionOfTheDay(answer: String) {
+        if (answer.isBlank()) return
         viewModelScope.launch {
-            settingsRepository.recordCheckIn()
+            settingsRepository.saveQuestionAnswer(LocalDate.now(), answer)
         }
     }
+
+    /** 7-day forecast for the user's sign (premium-gated in UI).
+     *  Re-emits at midnight so a long-lived session sees Tuesday's week, not Monday's. */
+    val weeklyForecast: StateFlow<List<String>> = combine(
+        settingsRepository.savedBirthDate,
+        todayFlow
+    ) { millis, today ->
+        millis?.let {
+            val birth = Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate()
+            val sign = AstronomyEngine.sunSignOfDay(birth)
+            ContentEngine.weeklyForecast(sign, today)
+        } ?: emptyList()
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Compatibility narrative between two signs. */
+    fun compatibilityInsight(signA: String, signB: String): String =
+        ContentEngine.compatibilityInsight(signA, signB)
 
     init {
         // Collect zodiac signs Flow with Resource wrapper. When the list finishes

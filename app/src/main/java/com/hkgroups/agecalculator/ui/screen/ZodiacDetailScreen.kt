@@ -56,9 +56,9 @@ fun ZodiacDetailScreen(
     signName: String?,
     viewModel: MainViewModel = hiltViewModel()
 ) {
-    // Reactive: collect the sign list as state so we re-render when the DB finishes
-    // loading. The previous one-shot `getSignByName` returned null before signs
-    // arrived and the screen rendered blank forever.
+    // Collect the sign list as state so the screen re-renders once the DB
+    // finishes seeding — a one-shot lookup fires before signs arrive and the
+    // screen would otherwise stay blank.
     val signs by viewModel.zodiacSignsState.collectAsState()
     val sign = signName?.let { name -> signs.find { it.name == name } }
 

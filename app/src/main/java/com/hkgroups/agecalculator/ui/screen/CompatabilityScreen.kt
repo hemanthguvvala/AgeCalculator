@@ -68,7 +68,7 @@ fun CompatibilityDetailScreen(
     // applies its own rate-limit (90s gap, 30s session grace) so most opens
     // won't actually serve an ad — keeps the screen feeling fast.
     val adController = com.hkgroups.agecalculator.util.LocalAdController.current
-    val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
+    val activity = androidx.activity.compose.LocalActivity.current
     androidx.compose.runtime.LaunchedEffect(userSignName, partnerSignName) {
         if (activity != null && userSignName != null && partnerSignName != null) {
             adController?.showInterstitialIfEligible(activity)
@@ -165,6 +165,18 @@ fun CompatibilityDetailScreen(
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = Color.White.copy(alpha = 0.9f),
                                     lineHeight = 24.sp
+                                )
+                                // Element-aware narrative from the on-device content engine —
+                                // adds a second perspective beyond the seeded one-liner.
+                                val narrative = remember(userSign.name, partnerSign.name) {
+                                    viewModel.compatibilityInsight(userSign.name, partnerSign.name)
+                                }
+                                Spacer(Modifier.height(12.dp))
+                                Text(
+                                    text = narrative,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = Color.White.copy(alpha = 0.78f),
+                                    lineHeight = 22.sp
                                 )
                             }
                         }

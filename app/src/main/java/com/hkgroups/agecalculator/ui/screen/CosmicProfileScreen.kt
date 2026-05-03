@@ -147,7 +147,10 @@ fun CosmicProfileScreen(
                 // Rising/Moon are manually entered since accurate calculation
                 // requires birth time and location.
                 CosmicTrinitySection(
-                    sunSignName = uiState.zodiacSign?.name,
+                    sunSignName = uiState.zodiacSign?.name
+                        ?: uiState.selectedDate?.let {
+                            com.hkgroups.agecalculator.content.AstronomyEngine.sunSignOfDay(it)
+                        },
                     risingSignName = risingSign,
                     moonSignName = moonSign,
                     onTapRising = { pickerOpenFor = TrinityPick.Rising },
@@ -170,6 +173,9 @@ fun CosmicProfileScreen(
                     Spacer(Modifier.height(Space.sm))
                     com.hkgroups.agecalculator.ui.screen.components.BirthChartWheel(
                         sunSignName = uiState.zodiacSign?.name
+                            ?: uiState.selectedDate?.let {
+                                com.hkgroups.agecalculator.content.AstronomyEngine.sunSignOfDay(it)
+                            }
                     )
                 }
 
@@ -348,10 +354,18 @@ private fun TrinityCell(
 private fun ProfileHero(uiState: com.hkgroups.agecalculator.ui.viewmodel.UiState) {
     val cz = uiState.chineseZodiac
     val sign = uiState.zodiacSign
-    val nameLabel = sign?.name ?: "Cosmic explorer"
+    val dob = uiState.selectedDate
+    // Derive sign name + element from the birth date directly so the hero
+    // doesn't say "Cosmic explorer" while the Room signs list finishes
+    // loading. We fall back to AstronomyEngine — pure date math, no DB.
+    val effectiveSignName = sign?.name
+        ?: dob?.let { com.hkgroups.agecalculator.content.AstronomyEngine.sunSignOfDay(it) }
+    val effectiveElement = sign?.element
+        ?: effectiveSignName?.let { com.hkgroups.agecalculator.content.AstronomyEngine.elementOf(it) }
+    val nameLabel = effectiveSignName ?: "Cosmic explorer"
     val subLabel = when {
-        sign != null && cz != null -> "${sign.element} · Year of the $cz"
-        sign != null -> sign.element
+        effectiveElement != null && cz != null -> "$effectiveElement · Year of the $cz"
+        effectiveElement != null -> effectiveElement
         cz != null -> "Year of the $cz"
         else -> "Stars aligned"
     }
@@ -401,7 +415,7 @@ private fun ProfileHero(uiState: com.hkgroups.agecalculator.ui.viewmodel.UiState
                     contentAlignment = Alignment.Center
                 ) {
                     com.hkgroups.agecalculator.ui.screen.components.ZodiacGlyph(
-                        sign = sign?.name ?: "",
+                        sign = effectiveSignName ?: "",
                         strokeColor = Color.White,
                         accentColor = palette.primary,
                         modifier = Modifier.size(96.dp)
@@ -458,6 +472,13 @@ private fun IdentityFactsSection(uiState: com.hkgroups.agecalculator.ui.viewmode
     val sign = uiState.zodiacSign
     val cz = uiState.chineseZodiac
     val dob = uiState.selectedDate
+    // Fall back to date-derived sign so the SUN card never reads "—" while
+    // the Room signs list is still loading.
+    val effectiveSignName = sign?.name
+        ?: dob?.let { com.hkgroups.agecalculator.content.AstronomyEngine.sunSignOfDay(it) }
+    val effectiveElement = sign?.element
+        ?: effectiveSignName?.let { com.hkgroups.agecalculator.content.AstronomyEngine.elementOf(it) }
+    val effectiveSymbol = sign?.symbol ?: effectiveSignName?.let { westernGlyph(it) }
 
     Column(
         modifier = Modifier.padding(horizontal = Space.md),
@@ -468,8 +489,10 @@ private fun IdentityFactsSection(uiState: com.hkgroups.agecalculator.ui.viewmode
         Row(horizontalArrangement = Arrangement.spacedBy(Space.sm)) {
             FactCard(
                 eyebrow = "SUN SIGN",
-                primary = sign?.name ?: "—",
-                secondary = sign?.let { "${it.symbol}  ${it.element}" } ?: "Set your birth date",
+                primary = effectiveSignName ?: "—",
+                secondary = if (effectiveSignName != null && effectiveElement != null)
+                    "${effectiveSymbol ?: ""}  $effectiveElement".trim()
+                else "Set your birth date",
                 accent = PrimaryNeon,
                 modifier = Modifier.weight(1f)
             )
@@ -734,6 +757,15 @@ private fun ProfileSectionTitle(text: String) {
 private fun decadeName(year: Int): String {
     val d = (year / 10) * 10
     return "${d}s"
+}
+
+/** Unicode zodiac symbol per sign — used as a fallback when the Room
+ *  ZodiacSign object hasn't loaded yet. */
+private fun westernGlyph(name: String): String = when (name) {
+    "Aries" -> "♈"; "Taurus" -> "♉"; "Gemini" -> "♊"; "Cancer" -> "♋"
+    "Leo" -> "♌"; "Virgo" -> "♍"; "Libra" -> "♎"; "Scorpio" -> "♏"
+    "Sagittarius" -> "♐"; "Capricorn" -> "♑"; "Aquarius" -> "♒"; "Pisces" -> "♓"
+    else -> "✨"
 }
 
 private fun dayOfWeekName(date: LocalDate): String =

@@ -44,8 +44,6 @@ fun CompatibilityCard(
                         .clickable { onSignClick(compatibleSign) }
                         .padding(horizontal = 4.dp, vertical = 8.dp)
                 ) {
-                    // --- THE ONLY CHANGE IS HERE ---
-                    // Replace the old static Column with the new AnimatedIcon
                     AnimatedIcon(sign = compatibleSign, index = index)
                 }
             }

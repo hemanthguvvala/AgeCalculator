@@ -12,8 +12,8 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.first
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
-import java.util.Date
 
 @HiltWorker
 class HoroscopeNotificationWorker @AssistedInject constructor(
@@ -34,28 +34,19 @@ class HoroscopeNotificationWorker @AssistedInject constructor(
         val notificationHelper = NotificationHelper(applicationContext)
         notificationHelper.createNotificationChannel()
 
-        // Fetch the user's saved birth date
         val savedBirthDateMillis =
             settingsRepository.savedBirthDate.first() ?: return Result.failure()
         val birthDate =
             Instant.ofEpochMilli(savedBirthDateMillis).atZone(ZoneId.systemDefault()).toLocalDate()
 
-        // Find their sign using cached data first (for quick lookup)
         val cachedSigns = zodiacRepository.getZodiacSignsLegacy()
         val userSign = findZodiacSignUseCase(birthDate, cachedSigns) ?: return Result.failure()
-        
-        // Fetch FRESH sign data from network (mock API) to get randomized daily horoscope
-        // This bypasses the cache to ensure we get new randomized data from MockApiInterceptor
-        val freshSign = zodiacRepository.getFreshZodiacSign(userSign.name)
-        
-        // Get the horoscope from fresh data if available, otherwise use repository method
-        val horoscope = freshSign?.let { 
-            zodiacRepository.getDailyHoroscope(it.name) 
-        } ?: zodiacRepository.getDailyHoroscope(userSign.name)
 
-        // Show the notification with fresh data
+        // Deterministic daily horoscope from the on-device content engine —
+        // no network, but produces fresh content every day from astronomical state.
+        val horoscope = zodiacRepository.getDailyHoroscope(userSign.name, LocalDate.now())
+
         notificationHelper.showHoroscopeNotification(userSign.name, horoscope)
-
         return Result.success()
     }
 }

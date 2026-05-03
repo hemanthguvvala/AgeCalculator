@@ -130,8 +130,8 @@ fun DailyRevealCard(
                         color = Color.White
                     )
                 } else {
-                    // Inviting hint instead of a blurred wall of text — the
-                    // previous blurred copy rendered as a dark void on glass.
+                    // Inviting hint instead of a blurred wall of text — blurred
+                    // body copy renders as a dark void on top of the glass card.
                     Text(
                         text = "The cosmos has prepared today's reading just for you.",
                         style = MaterialTheme.typography.bodyLarge,

@@ -84,10 +84,13 @@ fun SettingsScreen(
     androidx.compose.runtime.LaunchedEffect(Unit) {
         billingController?.queryOwnership()
     }
-    val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
+    val activity = androidx.activity.compose.LocalActivity.current
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     var showBirthEditor by androidx.compose.runtime.saveable.rememberSaveable {
+        androidx.compose.runtime.mutableStateOf(false)
+    }
+    var showResetConfirm by androidx.compose.runtime.saveable.rememberSaveable {
         androidx.compose.runtime.mutableStateOf(false)
     }
 
@@ -298,12 +301,7 @@ fun SettingsScreen(
                             }
                             Spacer(Modifier.height(12.dp))
                             OutlinedButton(
-                                onClick = {
-                                    viewModel.clearData()
-                                    coroutineScope.launch {
-                                        snackbarHostState.showSnackbar("Data reset successfully")
-                                    }
-                                },
+                                onClick = { showResetConfirm = true },
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text("Reset", color = SaturnGold)
@@ -318,6 +316,20 @@ fun SettingsScreen(
                         shape = RoundedCornerShape(20.dp)
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
+                            // Privacy choices — re-opens the UMP consent form. Required
+                            // for EEA / UK users; safe no-op elsewhere (button stays
+                            // available so users can revisit their choices anytime).
+                            val consentManager =
+                                com.hkgroups.agecalculator.util.LocalConsentManager.current
+                            if (consentManager?.isPrivacyOptionsRequired == true && activity != null) {
+                                OutlinedButton(
+                                    onClick = { consentManager.showPrivacyOptions(activity) },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("Privacy choices", color = Color.White)
+                                }
+                                Spacer(Modifier.height(8.dp))
+                            }
                             OutlinedButton(
                                 onClick = { navController.navigate(Screen.PrivacyPolicy.route) },
                                 modifier = Modifier.fillMaxWidth()
@@ -374,6 +386,49 @@ fun SettingsScreen(
                     snackbarHostState.showSnackbar("Birth date updated")
                 }
             }
+        )
+    }
+
+    if (showResetConfirm) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showResetConfirm = false },
+            title = {
+                Text(
+                    text = "Reset all app data?",
+                    color = Color.White,
+                    fontWeight = FontWeight.SemiBold
+                )
+            },
+            text = {
+                Text(
+                    text = "This permanently clears your birth date, mood entries, " +
+                        "rising and moon signs, streak, and saved partners. " +
+                        "You can't undo this.",
+                    color = Color.White.copy(alpha = 0.85f)
+                )
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = {
+                        showResetConfirm = false
+                        viewModel.clearData()
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar("Data reset successfully")
+                        }
+                    }
+                ) {
+                    Text("Reset", color = SaturnGold, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = { showResetConfirm = false }
+                ) {
+                    Text("Cancel", color = Color.White.copy(alpha = 0.75f))
+                }
+            },
+            containerColor = Color(0xFF14182B),
+            shape = RoundedCornerShape(20.dp)
         )
     }
 }

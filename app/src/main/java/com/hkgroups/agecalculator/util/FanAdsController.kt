@@ -19,8 +19,7 @@ import com.facebook.ads.NativeAdListener
  * FanAdsController — single owner of Facebook Audience Network state.
  *
  * One instance lives in the Application; everywhere else accesses it through
- * the [LocalAdController] composition local. Centralizing here means we can
- * later swap to a mediator (AppLovin MAX) without touching screen code.
+ * the [LocalAdController] composition local.
  *
  * **Rate-limiting** is applied here, not at the call site, because it's a
  * cross-screen concern: an interstitial can only show every 90 seconds, never
@@ -29,7 +28,8 @@ import com.facebook.ads.NativeAdListener
  */
 class FanAdsController(
     private val applicationContext: Context,
-    private val adsDisabledProvider: () -> Boolean = { false }
+    private val adsDisabledProvider: () -> Boolean = { false },
+    private val canShowAdsProvider: () -> Boolean = { true }
 ) {
     companion object {
         private const val TAG = "FanAds"
@@ -78,7 +78,7 @@ class FanAdsController(
      *  AndroidView in Compose. The caller is responsible for `destroy()` on
      *  composable disposal. */
     fun createBannerAdView(context: Context): AdView? {
-        if (adsDisabledProvider()) return null
+        if (adsDisabledProvider() || !canShowAdsProvider()) return null
         val view = AdView(context, BANNER_PLACEMENT, AdSize.BANNER_HEIGHT_50)
         view.loadAd(view.buildLoadAdConfig().build())
         return view
@@ -95,7 +95,7 @@ class FanAdsController(
         onLoaded: (NativeAd) -> Unit,
         onFailed: (String) -> Unit = {}
     ): NativeAd? {
-        if (adsDisabledProvider()) return null
+        if (adsDisabledProvider() || !canShowAdsProvider()) return null
         val ad = NativeAd(context, NATIVE_PLACEMENT)
         ad.loadAd(
             ad.buildLoadAdConfig()
@@ -120,7 +120,7 @@ class FanAdsController(
     /** Preload the next interstitial in the background. Runs after init and
      *  again after each show so one is always warm when needed. */
     private fun preloadInterstitial() {
-        if (adsDisabledProvider()) return
+        if (adsDisabledProvider() || !canShowAdsProvider()) return
         val ad = InterstitialAd(applicationContext, INTERSTITIAL_PLACEMENT)
         ad.loadAd(
             ad.buildLoadAdConfig()
@@ -162,7 +162,7 @@ class FanAdsController(
      * Returns true if it actually showed.
      */
     fun showInterstitialIfEligible(activity: Activity): Boolean {
-        if (adsDisabledProvider()) return false
+        if (adsDisabledProvider() || !canShowAdsProvider()) return false
         val now = System.currentTimeMillis()
         if (now - sessionStart < SESSION_GRACE_MS) return false
         if (now - lastInterstitialShownAt < MIN_INTERSTITIAL_GAP_MS) return false
